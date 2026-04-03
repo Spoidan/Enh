@@ -1,0 +1,139 @@
+// This is your Prisma schema file
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Class {
+  id            String         @id @default(cuid())
+  name          String
+  section       String?
+  gradeLevel    String?
+  capacity      Int?
+  students      Student[]
+  feeStructures FeeStructure[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("classes")
+}
+
+model Student {
+  id           String    @id @default(cuid())
+  name         String
+  rollNumber   String    @unique
+  classId      String
+  class        Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  parentName   String?
+  parentPhone  String?
+  parentEmail  String?
+  photoUrl     String?
+  address      String?
+  dateOfBirth  DateTime?
+  gender       String?
+  isActive     Boolean   @default(true)
+  payments     Payment[]
+  sales        Sale[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("students")
+}
+
+model FeeStructure {
+  id          String   @id @default(cuid())
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name        String
+  amount      Float
+  period      String   @default("monthly")
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("fee_structures")
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  amount      Float
+  date        DateTime
+  method      String   @default("cash")
+  reference   String?
+  notes       String?
+  month       Int?
+  year        Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("payments")
+}
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // uniform | book | other
+  price       Float
+  stock       Int      @default(0)
+  description String?
+  sku         String?
+  sales       Sale[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("inventory_items")
+}
+
+model Sale {
+  id        String        @id @default(cuid())
+  studentId String?
+  student   Student?      @relation(fields: [studentId], references: [id])
+  itemId    String
+  item      InventoryItem @relation(fields: [itemId], references: [id])
+  quantity  Int
+  unitPrice Float
+  amount    Float
+  date      DateTime
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("sales")
+}
+
+model Deposit {
+  id        String   @id @default(cuid())
+  date      DateTime
+  amount    Float
+  source    String
+  bankName  String?
+  reference String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("deposits")
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  date        DateTime
+  amount      Float
+  category    String
+  description String?
+  payee       String?
+  reference   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("expenses")
+}
