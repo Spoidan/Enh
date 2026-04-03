@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getDashboardStats } from '@/lib/actions/dashboard'
 import { getRevenueChartData } from '@/lib/actions/finance'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'

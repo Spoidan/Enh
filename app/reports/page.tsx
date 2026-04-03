@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getFinancialSummary, getRevenueChartData } from '@/lib/actions/finance'
 import { getStudents } from '@/lib/actions/students'
 import { getClasses } from '@/lib/actions/classes'
