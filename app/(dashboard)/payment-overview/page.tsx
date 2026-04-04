@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { Search, TrendingDown, TrendingUp, DollarSign, Users } from 'lucide-react'
+import { Search, TrendingDown, TrendingUp, Users, Plus, Trash2, ChevronDown, ChevronUp, DollarSign } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -16,53 +17,191 @@ import {
   getClassPaymentOverview,
   type StudentPaymentSummary,
   type ClassPaymentOverview,
+  type ExtraFeeSummary,
 } from '@/lib/actions/payment-overview'
+import { addExtraFee, deleteExtraFee } from '@/lib/actions/extra-fees'
 import { formatCurrency } from '@/lib/utils'
+import { toast } from 'sonner'
 
 type ClassOption = { id: string; name: string; gradeLevel: string | null; section: string | null }
 
 function StatusBadge({ status }: { status: StudentPaymentSummary['status'] }) {
   if (status === 'paid') {
-    return (
-      <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
-        Payé intégralement
-      </Badge>
-    )
+    return <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">Payé intégralement</Badge>
   }
   if (status === 'partial') {
-    return (
-      <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-100">
-        Partiel
-      </Badge>
-    )
+    return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-100">Partiel</Badge>
   }
+  return <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100">Non payé</Badge>
+}
+
+// ── Extra Fees Modal ────────────────────────────────────────────────────────
+function AddExtraFeeModal({
+  student,
+  onClose,
+  onAdded,
+}: {
+  student: { id: string; name: string }
+  onClose: () => void
+  onAdded: () => void
+}) {
+  const [description, setDescription] = useState('')
+  const [amount, setAmount] = useState('')
+  const [isPending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const amt = parseFloat(amount)
+    if (!description.trim() || isNaN(amt) || amt <= 0) return
+
+    startTransition(async () => {
+      const result = await addExtraFee({
+        studentId: student.id,
+        description: description.trim(),
+        amount: amt,
+      })
+      if (result && 'error' in result) {
+        toast.error(result.error)
+      } else {
+        toast.success('Frais supplémentaires ajoutés')
+        onAdded()
+        onClose()
+      }
+    })
+  }
+
   return (
-    <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100">
-      Non payé
-    </Badge>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-card border rounded-2xl shadow-xl w-full max-w-md space-y-5 p-6">
+        <div>
+          <h2 className="text-lg font-bold">Ajouter des frais supplémentaires</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Élève : <strong>{student.name}</strong></p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Description</label>
+            <Input
+              placeholder="Ex: Frais de laboratoire, Transport..."
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Montant (BIF)</label>
+            <Input
+              type="number"
+              min="1"
+              step="1"
+              placeholder="0"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+              Annuler
+            </Button>
+            <Button type="submit" className="flex-1" disabled={isPending}>
+              {isPending ? 'Enregistrement...' : 'Confirmer'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }
 
+// ── Fee Breakdown ────────────────────────────────────────────────────────────
+function FeeBreakdown({
+  student,
+  onDelete,
+}: {
+  student: StudentPaymentSummary
+  onDelete: (id: string) => void
+}) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <div className="px-4 pb-3 bg-muted/20 border-t text-sm">
+      <div className="pt-2 space-y-1">
+        <div className="flex justify-between text-muted-foreground">
+          <span>Frais de base</span>
+          <span>{formatCurrency(student.baseFee)}</span>
+        </div>
+        {student.extraFees.map((ef: ExtraFeeSummary) => (
+          <div key={ef.id} className="flex justify-between items-center">
+            <span className="text-yellow-700">+ {ef.description}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-yellow-700 tabular-nums">{formatCurrency(ef.amount)}</span>
+              <button
+                onClick={() => {
+                  startTransition(async () => {
+                    const result = await deleteExtraFee(ef.id)
+                    if (result.success) {
+                      toast.success('Frais supprimé')
+                      onDelete(ef.id)
+                    }
+                  })
+                }}
+                disabled={isPending}
+                className="text-destructive hover:text-destructive/80 p-0.5 rounded"
+                title="Supprimer ce frais"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+        <div className="flex justify-between font-semibold border-t pt-1 mt-1">
+          <span>Total attendu</span>
+          <span>{formatCurrency(student.totalExpected)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
 export default function PaymentOverviewPage() {
   const [classes, setClasses] = useState<ClassOption[]>([])
   const [selectedClassId, setSelectedClassId] = useState<string>('')
   const [overview, setOverview] = useState<ClassPaymentOverview | null>(null)
   const [search, setSearch] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [addFeeFor, setAddFeeFor] = useState<{ id: string; name: string } | null>(null)
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    getClassesForOverview().then(data => {
-      setClasses(data as ClassOption[])
-    })
+    getClassesForOverview().then(data => setClasses(data as ClassOption[]))
   }, [])
 
-  useEffect(() => {
-    if (!selectedClassId) { setOverview(null); return }
+  function loadOverview(classId: string) {
+    if (!classId) { setOverview(null); return }
     startTransition(async () => {
-      const data = await getClassPaymentOverview(selectedClassId)
+      const data = await getClassPaymentOverview(classId)
       setOverview(data)
     })
-  }, [selectedClassId])
+  }
+
+  useEffect(() => { loadOverview(selectedClassId) }, [selectedClassId])
+
+  function toggleRow(id: string) {
+    setExpandedRows(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function handleExtraFeeDeleted() {
+    loadOverview(selectedClassId)
+  }
 
   const filtered = overview?.students.filter(s =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -76,12 +215,10 @@ export default function PaymentOverviewPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Aperçu des paiements</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">
-          Situation des paiements par classe
-        </p>
+        <p className="text-muted-foreground text-sm mt-0.5">Situation des paiements par classe</p>
       </div>
 
-      {/* Class selector */}
+      {/* Class selector + search */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="w-72">
           <Select value={selectedClassId} onValueChange={setSelectedClassId}>
@@ -90,9 +227,7 @@ export default function PaymentOverviewPage() {
             </SelectTrigger>
             <SelectContent>
               {classes.map(cls => (
-                <SelectItem key={cls.id} value={cls.id}>
-                  {cls.name}
-                </SelectItem>
+                <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -128,9 +263,7 @@ export default function PaymentOverviewPage() {
                 <TrendingUp className="h-3.5 w-3.5" />
                 Total collecté
               </div>
-              <p className="text-xl font-bold text-green-600">
-                {formatCurrency(overview.summary.totalCollected)}
-              </p>
+              <p className="text-xl font-bold text-green-600">{formatCurrency(overview.summary.totalCollected)}</p>
               <p className="text-xs text-muted-foreground">{overview.summary.countPaid} entièrement payés</p>
             </div>
             <div className="rounded-xl border bg-card p-4 space-y-1">
@@ -138,9 +271,7 @@ export default function PaymentOverviewPage() {
                 <TrendingDown className="h-3.5 w-3.5" />
                 Solde impayé
               </div>
-              <p className="text-xl font-bold text-red-600">
-                {formatCurrency(overview.summary.totalOutstanding)}
-              </p>
+              <p className="text-xl font-bold text-red-600">{formatCurrency(overview.summary.totalOutstanding)}</p>
               <p className="text-xs text-muted-foreground">{overview.summary.countUnpaid} non payés</p>
             </div>
             <div className="rounded-xl border bg-card p-4 space-y-1">
@@ -156,9 +287,7 @@ export default function PaymentOverviewPage() {
           {/* Progress bar */}
           <div className="rounded-xl border bg-card p-4 space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="font-medium">
-                Taux de recouvrement — {selectedClass?.name}
-              </span>
+              <span className="font-medium">Taux de recouvrement — {selectedClass?.name}</span>
               <span className="text-muted-foreground">
                 {overview.summary.totalExpected > 0
                   ? Math.round((overview.summary.totalCollected / overview.summary.totalExpected) * 100)
@@ -182,61 +311,94 @@ export default function PaymentOverviewPage() {
           </div>
 
           {/* Students table */}
-          <div className="rounded-xl border overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-xl border overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-muted/50 border-b">
                 <tr>
+                  <th className="text-left font-medium px-4 py-3 w-8"></th>
                   <th className="text-left font-medium px-4 py-3">Élève</th>
                   <th className="text-left font-medium px-4 py-3">N° d&apos;immatriculation</th>
                   <th className="text-right font-medium px-4 py-3">Frais attendus</th>
                   <th className="text-right font-medium px-4 py-3">Montant payé</th>
                   <th className="text-right font-medium px-4 py-3">Solde</th>
                   <th className="text-center font-medium px-4 py-3">Statut</th>
+                  <th className="text-center font-medium px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {isPending ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                      Chargement...
-                    </td>
+                    <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">Chargement...</td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                       {search ? 'Aucun élève trouvé.' : 'Aucun élève dans cette classe.'}
                     </td>
                   </tr>
                 ) : (
-                  filtered.map(student => (
-                    <tr
-                      key={student.id}
-                      className={`hover:bg-muted/20 transition-colors ${
-                        student.status === 'unpaid' ? 'bg-red-50/30' :
-                        student.status === 'partial' ? 'bg-yellow-50/30' :
-                        'bg-green-50/10'
-                      }`}
-                    >
-                      <td className="px-4 py-3 font-medium">{student.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
-                        {student.rollNumber}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        {formatCurrency(student.totalExpected)}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-green-700">
-                        {formatCurrency(student.totalPaid)}
-                      </td>
-                      <td className={`px-4 py-3 text-right tabular-nums font-medium ${
-                        student.balance > 0 ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                        {student.balance > 0 ? `-${formatCurrency(student.balance)}` : formatCurrency(0)}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <StatusBadge status={student.status} />
-                      </td>
-                    </tr>
-                  ))
+                  filtered.map(student => {
+                    const isExpanded = expandedRows.has(student.id)
+                    const hasExtra = student.extraFees.length > 0
+                    return (
+                      <>
+                        <tr
+                          key={student.id}
+                          className={`hover:bg-muted/20 transition-colors ${
+                            student.status === 'unpaid' ? 'bg-red-50/30' :
+                            student.status === 'partial' ? 'bg-yellow-50/30' :
+                            'bg-green-50/10'
+                          }`}
+                        >
+                          <td className="px-2 py-3 text-center">
+                            <button
+                              onClick={() => toggleRow(student.id)}
+                              className="p-1 rounded hover:bg-muted/50 text-muted-foreground"
+                              title="Voir le détail des frais"
+                            >
+                              {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-medium">
+                            {student.name}
+                            {hasExtra && (
+                              <span className="ml-1.5 inline-flex items-center rounded-full bg-yellow-100 px-1.5 py-0.5 text-xs text-yellow-700">
+                                +{student.extraFees.length} extra
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{student.rollNumber}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(student.totalExpected)}</td>
+                          <td className="px-4 py-3 text-right tabular-nums text-green-700">{formatCurrency(student.totalPaid)}</td>
+                          <td className={`px-4 py-3 text-right tabular-nums font-medium ${student.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {student.balance > 0 ? `-${formatCurrency(student.balance)}` : formatCurrency(0)}
+                          </td>
+                          <td className="px-4 py-3 text-center"><StatusBadge status={student.status} /></td>
+                          <td className="px-4 py-3 text-center">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => setAddFeeFor({ id: student.id, name: student.name })}
+                            >
+                              <Plus className="h-3 w-3" />
+                              Frais supp.
+                            </Button>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr key={`${student.id}-breakdown`}>
+                            <td colSpan={8} className="p-0">
+                              <FeeBreakdown
+                                student={student}
+                                onDelete={handleExtraFeeDeleted}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )
+                  })
                 )}
               </tbody>
             </table>
@@ -250,6 +412,15 @@ export default function PaymentOverviewPage() {
           <p className="text-lg font-medium">Sélectionnez une classe</p>
           <p className="text-sm">Choisissez une classe pour voir la situation des paiements</p>
         </div>
+      )}
+
+      {/* Add Extra Fee Modal */}
+      {addFeeFor && (
+        <AddExtraFeeModal
+          student={addFeeFor}
+          onClose={() => setAddFeeFor(null)}
+          onAdded={() => loadOverview(selectedClassId)}
+        />
       )}
     </div>
   )

@@ -9,10 +9,19 @@ export async function getClassesForOverview() {
   })
 }
 
+export type ExtraFeeSummary = {
+  id: string
+  description: string
+  amount: number
+}
+
 export type StudentPaymentSummary = {
   id: string
   name: string
   rollNumber: string
+  baseFee: number
+  extraFees: ExtraFeeSummary[]
+  totalExtraFees: number
   totalExpected: number
   totalPaid: number
   balance: number
@@ -46,6 +55,7 @@ export async function getClassPaymentOverview(
     where: { classId, isActive: true },
     include: {
       payments: true,
+      extraFees: { orderBy: { createdAt: 'asc' } },
       class: {
         include: {
           feeStructures: { where: { isActive: true } },
@@ -57,13 +67,21 @@ export async function getClassPaymentOverview(
 
   const studentsWithSummary: StudentPaymentSummary[] = students.map(student => {
     // Use year fee structure if available, otherwise fall back to class fee structures
-    let totalExpected: number
+    let baseFee: number
     const yearFee = activeYear?.yearFeeStructures.find(f => f.classId === classId)
     if (yearFee) {
-      totalExpected = yearFee.amount
+      baseFee = yearFee.amount
     } else {
-      totalExpected = student.class.feeStructures.reduce((sum, f) => sum + f.amount, 0)
+      baseFee = student.class.feeStructures.reduce((sum, f) => sum + f.amount, 0)
     }
+
+    const extraFeeItems: ExtraFeeSummary[] = student.extraFees.map(ef => ({
+      id: ef.id,
+      description: ef.description,
+      amount: ef.amount,
+    }))
+    const totalExtraFees = extraFeeItems.reduce((s, ef) => s + ef.amount, 0)
+    const totalExpected = baseFee + totalExtraFees
 
     const totalPaid = student.payments.reduce((sum, p) => sum + p.amount, 0)
     const balance = totalExpected - totalPaid
@@ -77,6 +95,9 @@ export async function getClassPaymentOverview(
       id: student.id,
       name: student.name,
       rollNumber: student.rollNumber,
+      baseFee,
+      extraFees: extraFeeItems,
+      totalExtraFees,
       totalExpected,
       totalPaid,
       balance,

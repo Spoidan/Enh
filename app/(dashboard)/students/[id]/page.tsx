@@ -46,9 +46,9 @@ export default async function StudentDetailPage({
           <CardHeader><CardTitle className="text-base">Student Info</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Status</span>
+              <span className="text-muted-foreground">Statut</span>
               <Badge variant={student.isActive ? 'success' : 'outline'}>
-                {student.isActive ? 'Active' : 'Inactive'}
+                {student.isActive ? 'Actif' : 'Inactif'}
               </Badge>
             </div>
             <div className="flex justify-between">

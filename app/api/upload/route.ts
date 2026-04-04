@@ -1,18 +1,28 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { join, extname } from 'path'
 import { randomUUID } from 'crypto'
+import { jwtVerify } from 'jose'
+
+const getSecret = () =>
+  new TextEncoder().encode(
+    process.env.SESSION_SECRET || 'school-mgmt-fallback-secret-32chars'
+  )
 
 const ALLOWED_TYPES = {
-  image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+  image: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'],
   pdf: ['application/pdf'],
 }
 
 export async function POST(request: NextRequest) {
-  const { userId } = await auth()
-  if (!userId) {
+  const token = request.cookies.get('session')?.value
+  if (!token) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  }
+  try {
+    await jwtVerify(token, getSecret())
+  } catch {
+    return NextResponse.json({ error: 'Session invalide' }, { status: 401 })
   }
 
   try {
@@ -32,10 +42,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Max 10 MB
-    if (file.size > 10 * 1024 * 1024) {
+    // Max 5 MB for images, 10 MB for PDFs
+    const maxSize = type === 'image' ? 5 * 1024 * 1024 : 10 * 1024 * 1024
+    if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'Fichier trop volumineux (max 10 Mo)' },
+        { error: `Fichier trop volumineux (max ${type === 'image' ? '5' : '10'} Mo)` },
         { status: 400 }
       )
     }

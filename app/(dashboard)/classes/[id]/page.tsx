@@ -58,7 +58,7 @@ export default async function ClassDetailPage({
                       <p className="text-xs text-muted-foreground">#{s.rollNumber}</p>
                     </div>
                     <Badge variant={s.isActive ? 'success' : 'outline'} >
-                      {s.isActive ? 'Active' : 'Inactive'}
+                      {s.isActive ? 'Actif' : 'Inactif'}
                     </Badge>
                   </div>
                 ))}

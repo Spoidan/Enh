@@ -186,7 +186,7 @@ export function StudentsClient({ students, classes, total, pages, currentPage }:
                     <td className="px-4 py-3 text-muted-foreground">{s.parentPhone ?? '—'}</td>
                     <td className="px-4 py-3">
                       <Badge variant={s.isActive ? 'success' : 'outline'}>
-                        {s.isActive ? 'Active' : 'Inactive'}
+                        {s.isActive ? 'Actif' : 'Inactif'}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">

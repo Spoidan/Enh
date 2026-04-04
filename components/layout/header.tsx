@@ -56,7 +56,7 @@ export function Header({
     : userEmail?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur px-6">
+    <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur px-6 pl-14 md:pl-6">
       {title && (
         <h1 className="text-lg font-semibold text-foreground hidden sm:block">
           {title}

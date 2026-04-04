@@ -2,10 +2,22 @@
 
 import { db } from '@/lib/db'
 
-export async function getDashboardStats() {
+export async function getDashboardStats(opts?: {
+  startDate?: Date
+  endDate?: Date
+}) {
   const now = new Date()
+  const startDate = opts?.startDate
+  const endDate = opts?.endDate
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+  // Date range for filtered queries
+  const dateFilter = startDate && endDate
+    ? { gte: startDate, lte: endDate }
+    : undefined
+
+  const recentWindowStart = startDate ?? thirtyDaysAgo
 
   const [
     totalStudents,
@@ -24,19 +36,34 @@ export async function getDashboardStats() {
   ] = await Promise.all([
     db.student.count(),
     db.class.count(),
-    db.payment.aggregate({ where: { date: { gte: firstOfMonth } }, _sum: { amount: true } }),
-    db.payment.aggregate({ _sum: { amount: true } }),
-    db.sale.aggregate({ _sum: { amount: true } }),
-    db.expense.aggregate({ _sum: { amount: true } }),
-    db.deposit.aggregate({ _sum: { amount: true } }),
+    db.payment.aggregate({
+      where: { date: dateFilter ?? { gte: firstOfMonth } },
+      _sum: { amount: true },
+    }),
+    db.payment.aggregate({
+      where: dateFilter ? { date: dateFilter } : undefined,
+      _sum: { amount: true },
+    }),
+    db.sale.aggregate({
+      where: dateFilter ? { date: dateFilter } : undefined,
+      _sum: { amount: true },
+    }),
+    db.expense.aggregate({
+      where: dateFilter ? { date: dateFilter } : undefined,
+      _sum: { amount: true },
+    }),
+    db.deposit.aggregate({
+      where: dateFilter ? { date: dateFilter } : undefined,
+      _sum: { amount: true },
+    }),
     db.payment.findMany({
-      where: { date: { gte: thirtyDaysAgo } },
+      where: { date: { gte: recentWindowStart, ...(endDate ? { lte: endDate } : {}) } },
       include: { student: { include: { class: true } } },
       orderBy: { date: 'desc' },
       take: 10,
     }),
     db.sale.findMany({
-      where: { date: { gte: thirtyDaysAgo } },
+      where: { date: { gte: recentWindowStart, ...(endDate ? { lte: endDate } : {}) } },
       include: { item: true, student: { include: { class: true } } },
       orderBy: { date: 'desc' },
       take: 10,
@@ -46,7 +73,7 @@ export async function getDashboardStats() {
       include: {
         students: {
           include: {
-            payments: true,
+            payments: dateFilter ? { where: { date: dateFilter } } : true,
             class: { include: { feeStructures: true } },
           },
         },
@@ -56,12 +83,15 @@ export async function getDashboardStats() {
     // Sales breakdown by type
     db.inventoryItem.findMany({
       include: {
-        sales: { select: { amount: true } },
+        sales: {
+          select: { amount: true },
+          where: dateFilter ? { date: dateFilter } : undefined,
+        },
       },
     }),
-    // Revenue by day (last 30 days)
+    // Revenue by day
     db.payment.findMany({
-      where: { date: { gte: thirtyDaysAgo } },
+      where: { date: { gte: recentWindowStart, ...(endDate ? { lte: endDate } : {}) } },
       select: { amount: true, date: true },
       orderBy: { date: 'asc' },
     }),
@@ -69,7 +99,10 @@ export async function getDashboardStats() {
     db.student.findMany({
       include: {
         class: { include: { feeStructures: { where: { isActive: true } } } },
-        payments: { select: { amount: true } },
+        payments: {
+          select: { amount: true },
+          where: dateFilter ? { date: dateFilter } : undefined,
+        },
       },
     }),
   ])
@@ -129,7 +162,7 @@ export async function getDashboardStats() {
     ...recentPayments.map(p => ({
       id: p.id,
       type: 'payment' as const,
-      description: `Fee payment - ${p.student.name}`,
+      description: `Paiement de frais — ${p.student.name}`,
       amount: p.amount,
       date: p.date,
       class: p.student.class.name,
@@ -137,7 +170,7 @@ export async function getDashboardStats() {
     ...recentSales.map(s => ({
       id: s.id,
       type: 'sale' as const,
-      description: `${s.item.name} - ${s.student?.name ?? 'Walk-in'}`,
+      description: `${s.item.name} — ${s.student?.name ?? 'Client'}`,
       amount: s.amount,
       date: s.date,
       class: s.student?.class?.name ?? '—',

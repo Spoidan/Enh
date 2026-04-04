@@ -10,17 +10,21 @@ interface SalesBreakdownChartProps {
 
 const COLORS = ['var(--color-chart-1)', 'var(--color-chart-3)', 'var(--color-chart-4)']
 
+function formatBIF(v: number) {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(v) + ' BIF'
+}
+
 export function SalesBreakdownChart({ uniformSales, bookSales, otherSales }: SalesBreakdownChartProps) {
   const data = [
-    { name: 'Uniforms', value: uniformSales },
-    { name: 'Books', value: bookSales },
-    { name: 'Other', value: otherSales },
+    { name: 'Uniformes', value: uniformSales },
+    { name: 'Livres', value: bookSales },
+    { name: 'Autre', value: otherSales },
   ].filter(d => d.value > 0)
 
   if (!data.length) {
     return (
       <div className="flex h-[200px] items-center justify-center text-muted-foreground text-sm">
-        No sales yet
+        Aucune vente
       </div>
     )
   }
@@ -34,7 +38,7 @@ export function SalesBreakdownChart({ uniformSales, bookSales, otherSales }: Sal
           ))}
         </Pie>
         <Tooltip
-          formatter={(value) => `$${Number(value).toLocaleString()}`}
+          formatter={(value, name) => [formatBIF(Number(value)), name]}
           contentStyle={{
             backgroundColor: 'var(--color-card)',
             border: '1px solid var(--color-border)',

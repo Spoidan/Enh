@@ -15,10 +15,14 @@ interface RevenueChartProps {
   data: { date: string; amount: number }[]
 }
 
+function formatBIF(v: number) {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(v) + ' BIF'
+}
+
 export function RevenueChart({ data }: RevenueChartProps) {
   const formatted = data.map(d => ({
     ...d,
-    label: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    label: new Date(d.date).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' }),
   }))
 
   return (
@@ -33,14 +37,16 @@ export function RevenueChart({ data }: RevenueChartProps) {
           axisLine={false}
         />
         <YAxis
-          tick={{ fontSize: 12 }}
+          tick={{ fontSize: 11 }}
           className="text-muted-foreground"
           tickLine={false}
           axisLine={false}
-          tickFormatter={v => `$${v.toLocaleString()}`}
+          tickFormatter={v => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(v)}
+          width={70}
         />
         <Tooltip
-          formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']}
+          formatter={(value) => [formatBIF(Number(value)), 'Revenus']}
+          labelFormatter={(label) => `Date: ${label}`}
           contentStyle={{
             backgroundColor: 'var(--color-card)',
             border: '1px solid var(--color-border)',
@@ -55,6 +61,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}
+          name="Revenus"
         />
       </LineChart>
     </ResponsiveContainer>

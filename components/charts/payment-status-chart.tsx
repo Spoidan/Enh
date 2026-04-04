@@ -12,15 +12,15 @@ const COLORS = ['#22c55e', '#f59e0b', '#ef4444']
 
 export function PaymentStatusChart({ fullyPaid, partial, noPay }: PaymentStatusChartProps) {
   const data = [
-    { name: 'Fully Paid', value: fullyPaid },
-    { name: 'Partial', value: partial },
-    { name: 'Pending', value: noPay },
+    { name: 'Entièrement payé', value: fullyPaid },
+    { name: 'Partiel', value: partial },
+    { name: 'Non payé', value: noPay },
   ].filter(d => d.value > 0)
 
   if (!data.length) {
     return (
       <div className="flex h-[250px] items-center justify-center text-muted-foreground text-sm">
-        No student data yet
+        Aucune donnée d&apos;élèves
       </div>
     )
   }
@@ -42,6 +42,7 @@ export function PaymentStatusChart({ fullyPaid, partial, noPay }: PaymentStatusC
           ))}
         </Pie>
         <Tooltip
+          formatter={(value, name) => [`${value} élèves`, name]}
           contentStyle={{
             backgroundColor: 'var(--color-card)',
             border: '1px solid var(--color-border)',

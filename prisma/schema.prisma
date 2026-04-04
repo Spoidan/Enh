@@ -91,11 +91,11 @@ model Class {
 }
 
 model Student {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
-  rollNumber  String    @unique
+  rollNumber  String      @unique
   classId     String
-  class       Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class       Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
   parentName  String?
   parentPhone String?
   parentEmail String?
@@ -103,13 +103,26 @@ model Student {
   address     String?
   dateOfBirth DateTime?
   gender      String?
-  isActive    Boolean   @default(true)
+  isActive    Boolean     @default(true)
   payments    Payment[]
   sales       Sale[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  extraFees   ExtraFee[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@map("students")
+}
+
+model ExtraFee {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  description String
+  amount      Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("extra_fees")
 }
 
 model FeeStructure {

@@ -18,8 +18,8 @@ import { formatCurrency, formatDate, downloadCSV } from '@/lib/utils'
 import type { Deposit, Expense } from '@/app/generated/prisma/client'
 
 const EXPENSE_CATEGORIES = [
-  'Salaries', 'Utilities', 'Maintenance', 'Supplies', 'Equipment',
-  'Transport', 'Marketing', 'Food', 'Security', 'Other',
+  'Salaires', 'Eau & Électricité', 'Maintenance', 'Fournitures', 'Équipement',
+  'Transport', 'Communication', 'Alimentation', 'Sécurité', 'Autre',
 ]
 
 interface Props {
@@ -60,11 +60,11 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
         reference: (fd.get('reference') as string) || undefined,
         notes: (fd.get('notes') as string) || undefined,
       })
-      toast.success('Deposit recorded')
+      toast.success('Dépôt enregistré')
       setShowDeposit(false)
       router.refresh()
     } catch {
-      toast.error('Failed to record deposit')
+      toast.error('Erreur lors de l\'enregistrement du dépôt')
     } finally {
       setSubmitting(false)
     }
@@ -83,46 +83,46 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
         payee: (fd.get('payee') as string) || undefined,
         reference: (fd.get('reference') as string) || undefined,
       })
-      toast.success('Expense recorded')
+      toast.success('Dépense enregistrée')
       setShowExpense(false)
       router.refresh()
     } catch {
-      toast.error('Failed to record expense')
+      toast.error('Erreur lors de l\'enregistrement de la dépense')
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleDeleteDeposit = (id: string) => {
-    if (!confirm('Delete this deposit?')) return
+    if (!confirm('Supprimer ce dépôt ?')) return
     startTransition(async () => {
       await deleteDeposit(id)
-      toast.success('Deposit deleted')
+      toast.success('Dépôt supprimé')
       router.refresh()
     })
   }
 
   const handleDeleteExpense = (id: string) => {
-    if (!confirm('Delete this expense?')) return
+    if (!confirm('Supprimer cette dépense ?')) return
     startTransition(async () => {
       await deleteExpense(id)
-      toast.success('Expense deleted')
+      toast.success('Dépense supprimée')
       router.refresh()
     })
   }
 
   const summaryCards = [
-    { title: 'Total Income', value: formatCurrency(summary.totalIncome), icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
-    { title: 'Total Expenses', value: formatCurrency(summary.totalExpenses), icon: TrendingDown, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
-    { title: 'Net Balance', value: formatCurrency(summary.netBalance), icon: DollarSign, color: summary.netBalance >= 0 ? 'text-green-600' : 'text-red-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-    { title: 'Fee Payments', value: formatCurrency(summary.totalPayments), icon: Landmark, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+    { title: 'Total Revenus', value: formatCurrency(summary.totalIncome), icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
+    { title: 'Total Dépenses', value: formatCurrency(summary.totalExpenses), icon: TrendingDown, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
+    { title: 'Solde Net', value: formatCurrency(summary.netBalance), icon: DollarSign, color: summary.netBalance >= 0 ? 'text-green-600' : 'text-red-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+    { title: 'Paiements de frais', value: formatCurrency(summary.totalPayments), icon: Landmark, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
   ]
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Finance</h1>
-        <p className="text-muted-foreground text-sm">Financial overview and transaction management</p>
+        <p className="text-muted-foreground text-sm">Aperçu financier et gestion des transactions</p>
       </div>
 
       {/* Summary Cards */}
@@ -146,15 +146,15 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
 
       <Tabs defaultValue={initialTab}>
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="deposits">Deposits ({deposits.total})</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses ({expenses.total})</TabsTrigger>
+          <TabsTrigger value="overview">Aperçu</TabsTrigger>
+          <TabsTrigger value="deposits">Dépôts ({deposits.total})</TabsTrigger>
+          <TabsTrigger value="expenses">Dépenses ({expenses.total})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Income vs Expenses (Last 30 days)</CardTitle>
+              <CardTitle className="text-base">Revenus vs Dépenses (30 derniers jours)</CardTitle>
             </CardHeader>
             <CardContent>
               <IncomeExpensesChart data={chartData} />
@@ -164,19 +164,19 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <Card>
               <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Fee Payments</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Paiements de frais</p>
                 <p className="text-2xl font-bold mt-1 text-green-600">{formatCurrency(summary.totalPayments)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Bank Deposits</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Dépôts bancaires</p>
                 <p className="text-2xl font-bold mt-1 text-blue-600">{formatCurrency(summary.totalDeposits)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Sales Revenue</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Revenus des ventes</p>
                 <p className="text-2xl font-bold mt-1 text-purple-600">{formatCurrency(summary.totalSales)}</p>
               </CardContent>
             </Card>
@@ -184,38 +184,40 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
         </TabsContent>
 
         <TabsContent value="deposits" className="mt-4 space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">{deposits.total} deposits totaling {formatCurrency(deposits.deposits.reduce((s, d) => s + d.amount, 0))}</p>
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              {deposits.total} dépôt(s) — total {formatCurrency(deposits.deposits.reduce((s, d) => s + d.amount, 0))}
+            </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() =>
                 downloadCSV(deposits.deposits.map(d => ({
-                  Date: formatDate(d.date), Amount: d.amount, Source: d.source,
-                  Bank: d.bankName ?? '', Reference: d.reference ?? '', Notes: d.notes ?? '',
-                })), 'deposits.csv')
+                  Date: formatDate(d.date), Montant: d.amount, Source: d.source,
+                  Banque: d.bankName ?? '', Référence: d.reference ?? '', Notes: d.notes ?? '',
+                })), 'depots.csv')
               }>
-                <Download className="h-4 w-4" />Export
+                <Download className="h-4 w-4 mr-1" />Exporter
               </Button>
               <Button size="sm" onClick={() => setShowDeposit(true)}>
-                <Plus className="h-4 w-4" />Add Deposit
+                <Plus className="h-4 w-4 mr-1" />Ajouter dépôt
               </Button>
             </div>
           </div>
           <Card>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[500px]">
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Source</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Bank</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Amount</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Reference</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Banque</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Montant</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Référence</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {deposits.deposits.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-10 text-muted-foreground">No deposits yet</td></tr>
+                    <tr><td colSpan={6} className="text-center py-10 text-muted-foreground">Aucun dépôt</td></tr>
                   ) : (
                     deposits.deposits.map(d => (
                       <tr key={d.id} className="border-b hover:bg-muted/30">
@@ -242,38 +244,40 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
         </TabsContent>
 
         <TabsContent value="expenses" className="mt-4 space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">{expenses.total} expenses totaling {formatCurrency(expenses.expenses.reduce((s, e) => s + e.amount, 0))}</p>
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <p className="text-sm text-muted-foreground">
+              {expenses.total} dépense(s) — total {formatCurrency(expenses.expenses.reduce((s, e) => s + e.amount, 0))}
+            </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() =>
                 downloadCSV(expenses.expenses.map(e => ({
-                  Date: formatDate(e.date), Category: e.category, Amount: e.amount,
-                  Description: e.description ?? '', Payee: e.payee ?? '',
-                })), 'expenses.csv')
+                  Date: formatDate(e.date), Catégorie: e.category, Montant: e.amount,
+                  Description: e.description ?? '', Bénéficiaire: e.payee ?? '',
+                })), 'depenses.csv')
               }>
-                <Download className="h-4 w-4" />Export
+                <Download className="h-4 w-4 mr-1" />Exporter
               </Button>
               <Button size="sm" onClick={() => setShowExpense(true)}>
-                <Plus className="h-4 w-4" />Add Expense
+                <Plus className="h-4 w-4 mr-1" />Ajouter dépense
               </Button>
             </div>
           </div>
           <Card>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[500px]">
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Category</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Catégorie</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Payee</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Amount</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Bénéficiaire</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Montant</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {expenses.expenses.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-10 text-muted-foreground">No expenses yet</td></tr>
+                    <tr><td colSpan={6} className="text-center py-10 text-muted-foreground">Aucune dépense</td></tr>
                   ) : (
                     expenses.expenses.map(e => (
                       <tr key={e.id} className="border-b hover:bg-muted/30">
@@ -304,14 +308,14 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
 
       {/* Deposit Dialog */}
       <Dialog open={showDeposit} onOpenChange={setShowDeposit}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Record Deposit</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-md w-full">
+          <DialogHeader><DialogTitle>Enregistrer un dépôt</DialogTitle></DialogHeader>
           <form onSubmit={handleDeposit}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Amount *</Label>
-                  <Input name="amount" type="number" min="0" step="0.01" required placeholder="1000" />
+                  <Label>Montant (BIF) *</Label>
+                  <Input name="amount" type="number" min="0" step="1" required placeholder="100 000" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Date *</Label>
@@ -320,26 +324,26 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
               </div>
               <div className="space-y-1.5">
                 <Label>Source *</Label>
-                <Input name="source" required placeholder="e.g., Fee Collection, Donation" />
+                <Input name="source" required placeholder="Ex: Collecte de frais, Don..." />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Bank Name</Label>
-                  <Input name="bankName" placeholder="Optional" />
+                  <Label>Nom de la banque</Label>
+                  <Input name="bankName" placeholder="Optionnel" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Reference #</Label>
-                  <Input name="reference" placeholder="Optional" />
+                  <Label>Référence</Label>
+                  <Input name="reference" placeholder="Optionnel" />
                 </div>
               </div>
               <div className="space-y-1.5">
                 <Label>Notes</Label>
-                <Input name="notes" placeholder="Optional notes" />
+                <Input name="notes" placeholder="Notes optionnelles" />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowDeposit(false)}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : 'Record Deposit'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowDeposit(false)}>Annuler</Button>
+              <Button type="submit" disabled={submitting}>{submitting ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -347,14 +351,14 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
 
       {/* Expense Dialog */}
       <Dialog open={showExpense} onOpenChange={setShowExpense}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Record Expense</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-md w-full">
+          <DialogHeader><DialogTitle>Enregistrer une dépense</DialogTitle></DialogHeader>
           <form onSubmit={handleExpense}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Amount *</Label>
-                  <Input name="amount" type="number" min="0" step="0.01" required placeholder="500" />
+                  <Label>Montant (BIF) *</Label>
+                  <Input name="amount" type="number" min="0" step="1" required placeholder="50 000" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Date *</Label>
@@ -362,9 +366,9 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Category *</Label>
+                <Label>Catégorie *</Label>
                 <Select name="category" required>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner une catégorie" /></SelectTrigger>
                   <SelectContent>
                     {EXPENSE_CATEGORIES.map(c => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -374,22 +378,22 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
               </div>
               <div className="space-y-1.5">
                 <Label>Description</Label>
-                <Input name="description" placeholder="What was this expense for?" />
+                <Input name="description" placeholder="Objet de la dépense..." />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Payee</Label>
-                  <Input name="payee" placeholder="Who was paid?" />
+                  <Label>Bénéficiaire</Label>
+                  <Input name="payee" placeholder="Qui a été payé ?" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Reference #</Label>
-                  <Input name="reference" placeholder="Optional" />
+                  <Label>Référence</Label>
+                  <Input name="reference" placeholder="Optionnel" />
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowExpense(false)}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>{submitting ? 'Saving...' : 'Record Expense'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowExpense(false)}>Annuler</Button>
+              <Button type="submit" disabled={submitting}>{submitting ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -39,47 +39,47 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
   const exportStudentReport = () => {
     downloadCSV(
       students.map(s => ({
-        Name: s.name,
-        'Roll #': s.rollNumber,
-        Class: s.class.name,
+        Nom: s.name,
+        'N° Immatriculation': s.rollNumber,
+        Classe: s.class.name,
         Parent: s.parentName ?? '',
-        Phone: s.parentPhone ?? '',
-        Status: s.isActive ? 'Active' : 'Inactive',
-        Enrolled: formatDate(s.createdAt),
+        Téléphone: s.parentPhone ?? '',
+        Statut: s.isActive ? 'Actif' : 'Inactif',
+        Inscription: formatDate(s.createdAt),
       })),
-      'student-report.csv'
+      'rapport-eleves.csv'
     )
   }
 
   const exportClassReport = () => {
     downloadCSV(
       classes.map(c => ({
-        Class: c.name,
+        Classe: c.name,
         Section: c.section ?? '',
-        'Grade Level': c.gradeLevel ?? '',
-        Students: c._count.students,
-        Capacity: c.capacity ?? '',
+        Niveau: c.gradeLevel ?? '',
+        Élèves: c._count.students,
+        Capacité: c.capacity ?? '',
       })),
-      'class-report.csv'
+      'rapport-classes.csv'
     )
   }
 
   const exportFinancialReport = () => {
     downloadCSV([{
-      'Total Income': summary.totalIncome,
-      'Fee Payments': summary.totalPayments,
-      'Bank Deposits': summary.totalDeposits,
-      'Sales Revenue': summary.totalSales,
-      'Total Expenses': summary.totalExpenses,
-      'Net Balance': summary.netBalance,
-    }], 'financial-summary.csv')
+      'Total Revenus': summary.totalIncome,
+      'Paiements de frais': summary.totalPayments,
+      'Dépôts bancaires': summary.totalDeposits,
+      'Revenus des ventes': summary.totalSales,
+      'Total Dépenses': summary.totalExpenses,
+      'Solde Net': summary.netBalance,
+    }], 'rapport-financier.csv')
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Reports</h1>
-        <p className="text-muted-foreground text-sm">Analytics and exportable reports</p>
+        <h1 className="text-2xl font-bold">Rapports</h1>
+        <p className="text-muted-foreground text-sm">Analyses et rapports exportables</p>
       </div>
 
       {/* Quick Stats */}
@@ -88,9 +88,9 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Students</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Élèves</p>
                 <p className="text-2xl font-bold mt-1">{totalStudents}</p>
-                <p className="text-xs text-muted-foreground">{activeStudents} active</p>
+                <p className="text-xs text-muted-foreground">{activeStudents} actifs</p>
               </div>
               <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg">
                 <Users className="h-5 w-5 text-blue-600" />
@@ -102,7 +102,7 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Net Balance</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Solde Net</p>
                 <p className={`text-2xl font-bold mt-1 ${summary.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(summary.netBalance)}
                 </p>
@@ -116,18 +116,18 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
         <Card>
           <CardContent className="p-5">
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Fully Paid</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Entièrement payés</p>
               <p className="text-2xl font-bold mt-1 text-green-600">{paymentStats.fullyPaid}</p>
-              <p className="text-xs text-muted-foreground">students</p>
+              <p className="text-xs text-muted-foreground">élèves</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Pending</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Non payés</p>
               <p className="text-2xl font-bold mt-1 text-red-600">{paymentStats.noPay}</p>
-              <p className="text-xs text-muted-foreground">students</p>
+              <p className="text-xs text-muted-foreground">élèves</p>
             </div>
           </CardContent>
         </Card>
@@ -137,7 +137,7 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Revenue Trend (90 days)</CardTitle>
+            <CardTitle className="text-base">Tendance des revenus (90 jours)</CardTitle>
           </CardHeader>
           <CardContent>
             <RevenueChart data={revenueData} />
@@ -145,7 +145,7 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Payment Status</CardTitle>
+            <CardTitle className="text-base">Statut des paiements</CardTitle>
           </CardHeader>
           <CardContent>
             <PaymentStatusChart
@@ -159,7 +159,7 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Income vs Expenses (90 days)</CardTitle>
+          <CardTitle className="text-base">Revenus vs Dépenses (90 jours)</CardTitle>
         </CardHeader>
         <CardContent>
           <IncomeExpensesChart data={chartData} />
@@ -174,8 +174,8 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
               <Users className="h-5 w-5 text-blue-600" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-sm">Student Report</p>
-              <p className="text-xs text-muted-foreground">{totalStudents} students</p>
+              <p className="font-semibold text-sm">Rapport Élèves</p>
+              <p className="text-xs text-muted-foreground">{totalStudents} élèves</p>
             </div>
             <Download className="h-4 w-4 text-muted-foreground" />
           </CardContent>
@@ -186,7 +186,7 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
               <TrendingUp className="h-5 w-5 text-purple-600" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-sm">Class Report</p>
+              <p className="font-semibold text-sm">Rapport Classes</p>
               <p className="text-xs text-muted-foreground">{classes.length} classes</p>
             </div>
             <Download className="h-4 w-4 text-muted-foreground" />
@@ -198,7 +198,7 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
               <DollarSign className="h-5 w-5 text-green-600" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-sm">Financial Summary</p>
+              <p className="font-semibold text-sm">Rapport Financier</p>
               <p className="text-xs text-muted-foreground">{formatCurrency(summary.totalIncome)} total</p>
             </div>
             <Download className="h-4 w-4 text-muted-foreground" />

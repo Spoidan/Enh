@@ -2,70 +2,103 @@ export const dynamic = 'force-dynamic'
 
 import { getDashboardStats } from '@/lib/actions/dashboard'
 import { getRevenueChartData } from '@/lib/actions/finance'
+import { getSchoolYears } from '@/lib/actions/school-years'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { RevenueChart } from '@/components/charts/revenue-chart'
 import { PaymentStatusChart } from '@/components/charts/payment-status-chart'
 import { IncomeExpensesChart } from '@/components/charts/income-expenses-chart'
 import { SalesBreakdownChart } from '@/components/charts/sales-breakdown-chart'
+import { DashboardFilters } from '@/components/dashboard-filters'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import {
   Users,
-  GraduationCap,
-  CreditCard,
   TrendingUp,
-  DollarSign,
   AlertTriangle,
   Landmark,
+  CreditCard,
   ShoppingBag,
   ArrowUpRight,
-  ArrowDownRight,
+  Banknote,
 } from 'lucide-react'
+import { Suspense } from 'react'
 
-export default async function DashboardPage() {
+interface PageProps {
+  searchParams: Promise<{ yearId?: string; termId?: string }>
+}
+
+export default async function DashboardPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const { yearId, termId } = params
+
+  // Fetch school years for filters
+  const schoolYears = await getSchoolYears()
+
+  // Determine active year as default
+  const activeYear = schoolYears.find(y => y.isActive)
+  const resolvedYearId = yearId || activeYear?.id || ''
+  const selectedYear = schoolYears.find(y => y.id === resolvedYearId)
+
+  // Determine term date range
+  let startDate: Date | undefined
+  let endDate: Date | undefined
+
+  if (termId && selectedYear) {
+    const term = selectedYear.terms.find((t: { id: string }) => t.id === termId)
+    if (term) {
+      startDate = new Date((term as { startDate: Date | string }).startDate)
+      endDate = new Date((term as { endDate: Date | string }).endDate)
+    }
+  } else if (resolvedYearId && selectedYear) {
+    startDate = new Date((selectedYear as { startDate: Date | string }).startDate)
+    endDate = new Date((selectedYear as { endDate: Date | string }).endDate)
+  }
+
   const [stats, revenueData] = await Promise.all([
-    getDashboardStats(),
+    getDashboardStats(startDate && endDate ? { startDate, endDate } : undefined),
     getRevenueChartData(30),
   ])
 
+  const activeTerm = selectedYear?.terms.find((t: { isActive: boolean }) => t.isActive)
+  const resolvedTermId = termId || activeTerm?.id || ''
+
   const metricCards = [
     {
-      title: 'Total Students',
-      value: stats.totalStudents.toLocaleString(),
+      title: 'Total Élèves',
+      value: stats.totalStudents.toLocaleString('fr-FR'),
       sub: `${stats.totalClasses} classes`,
       icon: Users,
       color: 'text-blue-600',
       bg: 'bg-blue-50 dark:bg-blue-900/20',
     },
     {
-      title: 'Monthly Revenue',
+      title: resolvedYearId ? 'Revenus de la période' : 'Revenus du mois',
       value: formatCurrency(stats.monthlyRevenue),
-      sub: 'Fee payments this month',
+      sub: 'Paiements de frais',
       icon: TrendingUp,
       color: 'text-green-600',
       bg: 'bg-green-50 dark:bg-green-900/20',
     },
     {
-      title: 'Pending Fees',
+      title: 'Frais impayés',
       value: formatCurrency(stats.totalPending),
-      sub: `${stats.paymentStatus.noPay} students unpaid`,
+      sub: `${stats.paymentStatus.noPay} élèves non payés`,
       icon: AlertTriangle,
       color: 'text-yellow-600',
       bg: 'bg-yellow-50 dark:bg-yellow-900/20',
     },
     {
-      title: 'Bank Balance',
+      title: 'Solde bancaire',
       value: formatCurrency(stats.bankBalance),
-      sub: `${formatCurrency(stats.totalExpensesAmount)} expenses`,
+      sub: `${formatCurrency(stats.totalExpensesAmount)} de dépenses`,
       icon: Landmark,
       color: 'text-purple-600',
       bg: 'bg-purple-50 dark:bg-purple-900/20',
     },
     {
-      title: 'Total Income',
+      title: 'Revenus totaux',
       value: formatCurrency(stats.totalIncome),
-      sub: 'All time',
-      icon: DollarSign,
+      sub: 'Toute période confondue',
+      icon: Banknote,
       color: 'text-indigo-600',
       bg: 'bg-indigo-50 dark:bg-indigo-900/20',
     },
@@ -73,9 +106,25 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Welcome back, Admin. Here's what's happening today.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Bienvenue. Voici un aperçu de la situation actuelle.
+          </p>
+        </div>
+        <Suspense fallback={null}>
+          <DashboardFilters
+            schoolYears={schoolYears.map(y => ({
+              id: y.id,
+              name: y.name,
+              isActive: y.isActive,
+              terms: y.terms.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })),
+            }))}
+            selectedYearId={resolvedYearId}
+            selectedTermId={resolvedTermId}
+          />
+        </Suspense>
       </div>
 
       {/* Metric Cards */}
@@ -102,8 +151,8 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Revenue Trend</CardTitle>
-            <CardDescription>Daily fee payments — last 30 days</CardDescription>
+            <CardTitle className="text-base">Tendance des revenus</CardTitle>
+            <CardDescription>Paiements de frais journaliers — 30 derniers jours</CardDescription>
           </CardHeader>
           <CardContent>
             <RevenueChart data={stats.revenueChart} />
@@ -112,8 +161,8 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Payment Status</CardTitle>
-            <CardDescription>Student payment breakdown</CardDescription>
+            <CardTitle className="text-base">Statut des paiements</CardTitle>
+            <CardDescription>Répartition par statut de paiement</CardDescription>
           </CardHeader>
           <CardContent>
             <PaymentStatusChart
@@ -129,8 +178,8 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Income vs Expenses</CardTitle>
-            <CardDescription>Last 30 days daily comparison</CardDescription>
+            <CardTitle className="text-base">Revenus vs Dépenses</CardTitle>
+            <CardDescription>Comparaison journalière — 30 derniers jours</CardDescription>
           </CardHeader>
           <CardContent>
             <IncomeExpensesChart data={revenueData} />
@@ -138,10 +187,9 @@ export default async function DashboardPage() {
         </Card>
 
         <div className="space-y-4">
-          {/* Sales Breakdown */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Sales Breakdown</CardTitle>
+              <CardTitle className="text-sm">Répartition des ventes</CardTitle>
             </CardHeader>
             <CardContent className="pb-4">
               <SalesBreakdownChart
@@ -159,11 +207,11 @@ export default async function DashboardPage() {
         {/* Top Classes by Pending Fees */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Top Classes — Pending Fees</CardTitle>
+            <CardTitle className="text-base">Classes — Frais impayés</CardTitle>
           </CardHeader>
           <CardContent>
             {stats.classPending.length === 0 ? (
-              <p className="text-sm text-muted-foreground">All classes are up to date!</p>
+              <p className="text-sm text-muted-foreground">Toutes les classes sont à jour !</p>
             ) : (
               <div className="space-y-3">
                 {stats.classPending.map((cls, i) => (
@@ -193,11 +241,11 @@ export default async function DashboardPage() {
         {/* Recent Transactions */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Recent Transactions</CardTitle>
+            <CardTitle className="text-base">Transactions récentes</CardTitle>
           </CardHeader>
           <CardContent>
             {stats.recentTransactions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No transactions yet</p>
+              <p className="text-sm text-muted-foreground">Aucune transaction</p>
             ) : (
               <div className="space-y-3">
                 {stats.recentTransactions.map(t => (

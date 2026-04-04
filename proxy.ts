@@ -9,6 +9,9 @@ const getSecret = () =>
 // Paths that don't require authentication
 const PUBLIC_PATHS = ['/login', '/sign-in']
 
+// API paths that don't require authentication (none currently)
+const PUBLIC_API_PATHS: string[] = []
+
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -17,18 +20,39 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Allow static assets and API routes
+  // Allow static assets
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/uploads') ||
-    pathname.startsWith('/api')
+    pathname.startsWith('/icons') ||
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js'
   ) {
     return NextResponse.next()
   }
 
   const token = request.cookies.get('session')?.value
 
+  // Protect API routes — return 401 instead of redirecting
+  if (pathname.startsWith('/api/')) {
+    if (PUBLIC_API_PATHS.some(p => pathname.startsWith(p))) {
+      return NextResponse.next()
+    }
+    if (!token) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+    }
+    try {
+      await jwtVerify(token, getSecret())
+      return NextResponse.next()
+    } catch {
+      const res = NextResponse.json({ error: 'Session invalide' }, { status: 401 })
+      res.cookies.delete('session')
+      return res
+    }
+  }
+
+  // Protect all other routes
   if (!token) {
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
