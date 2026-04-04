@@ -13,13 +13,15 @@ datasource db {
 // ─── Auth / Users ───────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
-  clerkId   String?  @unique
-  email     String   @unique
-  name      String?
-  role      String   @default("assistant") // admin | assistant
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  role         String   @default("assistant") // admin | assistant
+  passwordHash String?
+  isSetup      Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("users")
 }
@@ -43,30 +45,47 @@ model SchoolSettings {
 // ─── Academic Year ────────────────────────────────────────────────────────────
 
 model SchoolYear {
-  id         String   @id @default(cuid())
-  name       String   // e.g., "2025-2026"
-  startDate  DateTime
-  endDate    DateTime
-  isActive   Boolean  @default(false)
-  isArchived Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                String             @id @default(cuid())
+  name              String
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean            @default(false)
+  isArchived        Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  terms             Term[]
+  yearFeeStructures YearFeeStructure[]
 
   @@map("school_years")
+}
+
+model Term {
+  id           String     @id @default(cuid())
+  schoolYearId String
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  name         String
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("terms")
 }
 
 // ─── Core School Models ───────────────────────────────────────────────────────
 
 model Class {
-  id            String         @id @default(cuid())
-  name          String
-  section       String?
-  gradeLevel    String?
-  capacity      Int?
-  students      Student[]
-  feeStructures FeeStructure[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                String             @id @default(cuid())
+  name              String
+  section           String?
+  gradeLevel        String?
+  capacity          Int?
+  students          Student[]
+  feeStructures     FeeStructure[]
+  yearFeeStructures YearFeeStructure[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@map("classes")
 }
@@ -106,6 +125,21 @@ model FeeStructure {
   updatedAt   DateTime @updatedAt
 
   @@map("fee_structures")
+}
+
+model YearFeeStructure {
+  id           String     @id @default(cuid())
+  schoolYearId String
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  classId      String
+  class        Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  amount       Float
+  description  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([schoolYearId, classId])
+  @@map("year_fee_structures")
 }
 
 model Payment {
@@ -201,17 +235,17 @@ model StaffMember {
 }
 
 model SalaryPayment {
-  id      String      @id @default(cuid())
-  staffId String
-  staff   StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  amount  Float
-  month   Int
-  year    Int
-  date    DateTime
-  status  String      @default("payé") // payé | en attente
-  notes   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        String      @id @default(cuid())
+  staffId   String
+  staff     StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  amount    Float
+  month     Int
+  year      Int
+  date      DateTime
+  status    String      @default("payé") // payé | en attente
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@map("salary_payments")
 }

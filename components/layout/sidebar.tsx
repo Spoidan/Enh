@@ -19,6 +19,9 @@ import {
   FileText,
   Shield,
   HeartHandshake,
+  UserCog,
+  PieChart,
+  CalendarDays,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
@@ -30,6 +33,7 @@ const commonNavItems = [
   { href: '/students', icon: Users, label: 'Élèves' },
   { href: '/classes', icon: GraduationCap, label: 'Classes' },
   { href: '/payments', icon: CreditCard, label: 'Paiements' },
+  { href: '/payment-overview', icon: PieChart, label: 'Aperçu paiements' },
   { href: '/inventory', icon: ShoppingBag, label: 'Inventaire' },
   { href: '/sales', icon: BookOpen, label: 'Ventes' },
   { href: '/finance', icon: Landmark, label: 'Finance' },
@@ -37,11 +41,13 @@ const commonNavItems = [
 ]
 
 const adminNavItems = [
+  { href: '/school-years', icon: CalendarDays, label: 'Années scolaires' },
   { href: '/etablissement', icon: Building2, label: 'Établissement' },
   { href: '/salaires', icon: Banknote, label: 'Salaires' },
   { href: '/lettres-debit', icon: FileText, label: 'Lettres Débit' },
   { href: '/inss', icon: Shield, label: 'Paiements INSS' },
   { href: '/mutuelle', icon: HeartHandshake, label: 'Mutuelle' },
+  { href: '/admin/accounts', icon: UserCog, label: 'Gestion des comptes' },
 ]
 
 export function Sidebar({ role }: { role: Role }) {

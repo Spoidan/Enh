@@ -44,21 +44,27 @@ async function main() {
   await db.payment.deleteMany()
   await db.expense.deleteMany()
   await db.deposit.deleteMany()
+  await db.yearFeeStructure.deleteMany()
   await db.feeStructure.deleteMany()
   await db.student.deleteMany()
   await db.inventoryItem.deleteMany()
   await db.class.deleteMany()
+  await db.term.deleteMany()
   await db.schoolYear.deleteMany()
 
   // ── Admin user ──────────────────────────────────────────────────────────────
+  // Admin is seeded WITHOUT a password so on first login they go through "Complete Account" setup.
+  // To bypass that for dev, set isSetup: true and provide a passwordHash.
   await db.user.create({
     data: {
       email: 'spoidanid4454@gmail.com',
       name: 'Spoid Admin',
       role: 'admin',
+      isSetup: false,
+      isActive: true,
     },
   })
-  console.log('✅ Utilisateur admin créé (email: spoidanid4454@gmail.com)')
+  console.log('✅ Utilisateur admin créé (email: spoidanid4454@gmail.com) — configure votre mot de passe à la première connexion')
 
   // ── School Settings ─────────────────────────────────────────────────────────
   await db.schoolSettings.create({
@@ -73,7 +79,7 @@ async function main() {
   console.log('✅ Paramètres de l\'école créés')
 
   // ── School Year ─────────────────────────────────────────────────────────────
-  await db.schoolYear.create({
+  const schoolYear = await db.schoolYear.create({
     data: {
       name: '2025-2026',
       startDate: new Date('2025-09-01'),
@@ -81,7 +87,16 @@ async function main() {
       isActive: true,
     },
   })
-  console.log('✅ Année scolaire 2025-2026 créée')
+
+  // Terms
+  await db.term.createMany({
+    data: [
+      { schoolYearId: schoolYear.id, name: 'Trimestre 1', startDate: new Date('2025-09-01'), endDate: new Date('2025-11-30'), isActive: false },
+      { schoolYearId: schoolYear.id, name: 'Trimestre 2', startDate: new Date('2026-01-05'), endDate: new Date('2026-03-31'), isActive: true },
+      { schoolYearId: schoolYear.id, name: 'Trimestre 3', startDate: new Date('2026-04-13'), endDate: new Date('2026-06-30'), isActive: false },
+    ],
+  })
+  console.log('✅ Année scolaire 2025-2026 créée avec 3 trimestres')
 
   // ── Classes ─────────────────────────────────────────────────────────────────
   const classData = [
@@ -116,6 +131,22 @@ async function main() {
     })
   }
   console.log('✅ Structures de frais créées')
+
+  // ── Year Fee Structures (annual fee per class for 2025-2026) ────────────────
+  const annualFees = [180000, 180000, 216000, 216000, 240000, 264000, 300000, 336000, 360000, 384000]
+  await Promise.all(
+    classes.map((cls, i) =>
+      db.yearFeeStructure.create({
+        data: {
+          schoolYearId: schoolYear.id,
+          classId: cls.id,
+          amount: annualFees[i],
+          description: `Frais annuels totaux — ${cls.name}`,
+        },
+      })
+    )
+  )
+  console.log('✅ Structures de frais annuels par classe créées')
 
   // ── Students ────────────────────────────────────────────────────────────────
   let rollCounter = 1001
