@@ -89,7 +89,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     {
       title: 'Solde bancaire',
       value: formatCurrency(stats.bankBalance),
-      sub: `${formatCurrency(stats.totalExpensesAmount)} de dépenses`,
+      sub: `${formatCurrency(stats.totalExpensesAmount + stats.totalSalariesAmount)} de charges`,
       icon: Landmark,
       color: 'text-purple-600',
       bg: 'bg-purple-50 dark:bg-purple-900/20',

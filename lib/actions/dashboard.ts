@@ -27,6 +27,7 @@ export async function getDashboardStats(opts?: {
     allSales,
     allExpenses,
     allDeposits,
+    allSalaries,
     recentPayments,
     recentSales,
     classesByFees,
@@ -53,6 +54,11 @@ export async function getDashboardStats(opts?: {
       _sum: { amount: true },
     }),
     db.deposit.aggregate({
+      where: dateFilter ? { date: dateFilter } : undefined,
+      _sum: { amount: true },
+    }),
+    // Total salary payments paid
+    db.salaryPayment.aggregate({
       where: dateFilter ? { date: dateFilter } : undefined,
       _sum: { amount: true },
     }),
@@ -111,8 +117,10 @@ export async function getDashboardStats(opts?: {
   const totalSalesRevenue = allSales._sum.amount ?? 0
   const totalExpensesAmount = allExpenses._sum.amount ?? 0
   const totalDeposits = allDeposits._sum.amount ?? 0
+  const totalSalariesAmount = allSalaries._sum.amount ?? 0
   const totalIncome = totalPaid + totalSalesRevenue + totalDeposits
-  const bankBalance = totalIncome - totalExpensesAmount
+  // Bank balance = all income - operating expenses - salary payments
+  const bankBalance = totalIncome - totalExpensesAmount - totalSalariesAmount
   const monthlyRevenue = monthlyPayments._sum.amount ?? 0
 
   // Pending fees calc
@@ -192,6 +200,7 @@ export async function getDashboardStats(opts?: {
     bankBalance,
     totalIncome,
     totalExpensesAmount,
+    totalSalariesAmount,
     paymentStatus: { fullyPaid, partial, noPay },
     classPending: classPending.slice(0, 5),
     salesBreakdown: { uniformSales, bookSales, otherSales },

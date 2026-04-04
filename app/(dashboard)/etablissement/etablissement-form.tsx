@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { FileUpload } from '@/components/ui/file-upload'
+import { LogoUpload } from '@/components/ui/logo-upload'
 import { upsertSchoolSettings } from '@/lib/actions/etablissement'
 import { toast } from 'sonner'
 import { Loader2, Save } from 'lucide-react'
@@ -21,14 +21,12 @@ interface Settings {
 
 export function EtablissementForm({ settings }: { settings: Settings | null }) {
   const [logoUrl, setLogoUrl] = useState(settings?.logoUrl ?? '')
-  const [logoName, setLogoName] = useState(
-    settings?.logoUrl ? 'Logo actuel' : ''
-  )
   const [pending, startTransition] = useTransition()
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
+    // Inject the base64 logo (or empty string to clear)
     fd.set('logoUrl', logoUrl)
 
     startTransition(async () => {
@@ -48,19 +46,16 @@ export function EtablissementForm({ settings }: { settings: Settings | null }) {
           <CardTitle>Logo de l&apos;établissement</CardTitle>
         </CardHeader>
         <CardContent>
-          <FileUpload
-            type="image"
+          <LogoUpload
             value={logoUrl}
-            fileName={logoName}
-            onChange={(url, name) => {
-              setLogoUrl(url)
-              setLogoName(name)
-            }}
-            onClear={() => {
-              setLogoUrl('')
-              setLogoName('')
-            }}
+            onChange={base64 => setLogoUrl(base64)}
+            onClear={() => setLogoUrl('')}
           />
+          {logoUrl && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Le logo sera sauvegardé lorsque vous cliquerez sur &quot;Enregistrer&quot;.
+            </p>
+          )}
         </CardContent>
       </Card>
 

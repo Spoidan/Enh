@@ -11,7 +11,7 @@ const SchoolSettingsSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
   directorName: z.string().optional(),
-  logoUrl: z.string().optional(),
+  logoUrl: z.string().max(4_000_000, 'Logo trop volumineux').optional(),
 })
 
 export async function getSchoolSettings() {
@@ -48,5 +48,6 @@ export async function upsertSchoolSettings(formData: FormData) {
   }
 
   revalidatePath('/etablissement')
+  revalidatePath('/', 'layout')
   return { success: true }
 }

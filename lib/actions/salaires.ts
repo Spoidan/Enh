@@ -85,5 +85,50 @@ export async function createSalaryPayment(formData: FormData) {
     data: { ...rest, date: new Date(date) },
   })
   revalidatePath('/salaires')
+  revalidatePath('/')
   return { success: true }
+}
+
+const BulkPaymentItemSchema = z.object({
+  staffId: z.string().min(1),
+  amount: z.coerce.number().positive(),
+})
+
+export async function createBulkSalaryPayments(data: {
+  payments: { staffId: string; amount: number }[]
+  month: number
+  year: number
+  date: string
+  notes?: string
+}) {
+  await requireAdmin()
+
+  const parsed = z.object({
+    payments: z.array(BulkPaymentItemSchema).min(1),
+    month: z.number().int().min(1).max(12),
+    year: z.number().int().min(2020),
+    date: z.string().min(1),
+    notes: z.string().optional(),
+  }).safeParse(data)
+
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const { payments, month, year, date, notes } = parsed.data
+  const payDate = new Date(date)
+
+  await db.salaryPayment.createMany({
+    data: payments.map(p => ({
+      staffId: p.staffId,
+      amount: p.amount,
+      month,
+      year,
+      date: payDate,
+      status: 'payé',
+      notes: notes || null,
+    })),
+  })
+
+  revalidatePath('/salaires')
+  revalidatePath('/')
+  return { success: true, count: payments.length }
 }
