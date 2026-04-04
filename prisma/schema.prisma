@@ -10,6 +10,53 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── Auth / Users ───────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String?  @unique
+  email     String   @unique
+  name      String?
+  role      String   @default("assistant") // admin | assistant
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ─── School Settings ─────────────────────────────────────────────────────────
+
+model SchoolSettings {
+  id           String   @id @default(cuid())
+  schoolName   String   @default("")
+  address      String?
+  phone        String?
+  email        String?
+  directorName String?
+  logoUrl      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("school_settings")
+}
+
+// ─── Academic Year ────────────────────────────────────────────────────────────
+
+model SchoolYear {
+  id         String   @id @default(cuid())
+  name       String   // e.g., "2025-2026"
+  startDate  DateTime
+  endDate    DateTime
+  isActive   Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("school_years")
+}
+
+// ─── Core School Models ───────────────────────────────────────────────────────
+
 model Class {
   id            String         @id @default(cuid())
   name          String
@@ -25,23 +72,23 @@ model Class {
 }
 
 model Student {
-  id           String    @id @default(cuid())
-  name         String
-  rollNumber   String    @unique
-  classId      String
-  class        Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
-  parentName   String?
-  parentPhone  String?
-  parentEmail  String?
-  photoUrl     String?
-  address      String?
-  dateOfBirth  DateTime?
-  gender       String?
-  isActive     Boolean   @default(true)
-  payments     Payment[]
-  sales        Sale[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  name        String
+  rollNumber  String    @unique
+  classId     String
+  class       Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  parentName  String?
+  parentPhone String?
+  parentEmail String?
+  photoUrl    String?
+  address     String?
+  dateOfBirth DateTime?
+  gender      String?
+  isActive    Boolean   @default(true)
+  payments    Payment[]
+  sales       Sale[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@map("students")
 }
@@ -62,18 +109,18 @@ model FeeStructure {
 }
 
 model Payment {
-  id          String   @id @default(cuid())
-  studentId   String
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  amount      Float
-  date        DateTime
-  method      String   @default("cash")
-  reference   String?
-  notes       String?
-  month       Int?
-  year        Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  amount    Float
+  date      DateTime
+  method    String   @default("cash")
+  reference String?
+  notes     String?
+  month     Int?
+  year      Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("payments")
 }
@@ -81,7 +128,7 @@ model Payment {
 model InventoryItem {
   id          String   @id @default(cuid())
   name        String
-  type        String   // uniform | book | other
+  type        String // uniform | book | other
   price       Float
   stock       Int      @default(0)
   description String?
@@ -136,4 +183,84 @@ model Expense {
   updatedAt   DateTime @updatedAt
 
   @@map("expenses")
+}
+
+// ─── HR / Salary ──────────────────────────────────────────────────────────────
+
+model StaffMember {
+  id            String          @id @default(cuid())
+  name          String
+  role          String? // e.g., Enseignant, Directeur, Administratif
+  monthlySalary Float
+  isActive      Boolean         @default(true)
+  payments      SalaryPayment[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@map("staff_members")
+}
+
+model SalaryPayment {
+  id      String      @id @default(cuid())
+  staffId String
+  staff   StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  amount  Float
+  month   Int
+  year    Int
+  date    DateTime
+  status  String      @default("payé") // payé | en attente
+  notes   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("salary_payments")
+}
+
+model SalaryDebitLetter {
+  id        String   @id @default(cuid())
+  month     Int
+  year      Int
+  fileUrl   String
+  fileName  String
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("salary_debit_letters")
+}
+
+// ─── INSS & Mutuelle ─────────────────────────────────────────────────────────
+
+model INSSPayment {
+  id        String   @id @default(cuid())
+  month     Int
+  year      Int
+  amount    Float
+  date      DateTime
+  status    String   @default("payé")
+  fileUrl   String?
+  fileName  String?
+  reference String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("inss_payments")
+}
+
+model MutuellePayment {
+  id        String   @id @default(cuid())
+  month     Int
+  year      Int
+  amount    Float
+  date      DateTime
+  status    String   @default("payé")
+  fileUrl   String?
+  fileName  String?
+  reference String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("mutuelle_payments")
 }

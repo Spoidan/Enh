@@ -6,18 +6,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+  return (
+    new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount) + ' BIF'
+  )
 }
 
 export function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString('en-US', {
+  return new Date(date).toLocaleDateString('fr-FR', {
     year: 'numeric',
-    month: 'short',
+    month: 'long',
     day: 'numeric',
   })
 }
@@ -27,7 +27,7 @@ export function formatDateInput(date: Date | string): string {
 }
 
 export function getMonthName(month: number): string {
-  return new Date(2000, month - 1, 1).toLocaleString('default', { month: 'long' })
+  return new Date(2000, month - 1, 1).toLocaleString('fr-FR', { month: 'long' })
 }
 
 export function downloadCSV(data: Record<string, unknown>[], filename: string) {
@@ -36,11 +36,13 @@ export function downloadCSV(data: Record<string, unknown>[], filename: string) {
   const csvContent = [
     headers.join(','),
     ...data.map(row =>
-      headers.map(h => {
-        const val = row[h]
-        const str = val == null ? '' : String(val)
-        return str.includes(',') ? `"${str}"` : str
-      }).join(',')
+      headers
+        .map(h => {
+          const val = row[h]
+          const str = val == null ? '' : String(val)
+          return str.includes(',') ? `"${str}"` : str
+        })
+        .join(',')
     ),
   ].join('\n')
 

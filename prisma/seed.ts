@@ -5,14 +5,15 @@ import { PrismaPg } from '@prisma/adapter-pg'
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
 const db = new PrismaClient({ adapter })
 
-const firstNames = ['James', 'Emma', 'Oliver', 'Sophia', 'William', 'Ava', 'Benjamin', 'Isabella', 'Lucas', 'Mia',
-  'Henry', 'Charlotte', 'Alexander', 'Amelia', 'Mason', 'Harper', 'Ethan', 'Evelyn', 'Daniel', 'Abigail',
-  'Michael', 'Emily', 'Aiden', 'Elizabeth', 'Logan', 'Mila', 'Jackson', 'Ella', 'Sebastian', 'Avery',
-  'Owen', 'Sofia', 'Liam', 'Camila', 'Noah', 'Aria', 'Elijah', 'Scarlett', 'Carter', 'Victoria']
+const prenomsM = ['Jean', 'Pierre', 'Paul', 'Michel', 'André', 'François', 'Jacques', 'Louis', 'Henri', 'Robert',
+  'Emmanuel', 'Thierry', 'Gilles', 'Didier', 'Patrice', 'Clément', 'Olivier', 'Sébastien', 'Nicolas', 'Vincent']
 
-const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez',
-  'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson',
-  'Martin', 'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson']
+const prenomsF = ['Marie', 'Anne', 'Sophie', 'Claire', 'Isabelle', 'Christine', 'Nathalie', 'Catherine', 'Sandrine',
+  'Valérie', 'Céline', 'Audrey', 'Sylvie', 'Laure', 'Camille', 'Julie', 'Alice', 'Emma', 'Léa', 'Manon']
+
+const noms = ['Nkurunziza', 'Ndayishimiye', 'Hakizimana', 'Ntahompagaze', 'Bizimana', 'Niyonzima',
+  'Nshimirimana', 'Bucumi', 'Nzohabonayo', 'Bigirimana', 'Habonimana', 'Hatungimana',
+  'Ndikumana', 'Nzeyimana', 'Bangirinama', 'Havyarimana', 'Ntirampeba', 'Barankiriza']
 
 function rand<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
@@ -29,9 +30,16 @@ function daysAgo(n: number) {
 }
 
 async function main() {
-  console.log('🌱 Seeding database...')
+  console.log('🌱 Initialisation de la base de données...')
 
-  // Clear existing data
+  // Clear existing data (order matters for FK constraints)
+  await db.salaryPayment.deleteMany()
+  await db.salaryDebitLetter.deleteMany()
+  await db.iNSSPayment.deleteMany()
+  await db.mutuellePayment.deleteMany()
+  await db.staffMember.deleteMany()
+  await db.schoolSettings.deleteMany()
+  await db.user.deleteMany()
   await db.sale.deleteMany()
   await db.payment.deleteMany()
   await db.expense.deleteMany()
@@ -40,79 +48,115 @@ async function main() {
   await db.student.deleteMany()
   await db.inventoryItem.deleteMany()
   await db.class.deleteMany()
+  await db.schoolYear.deleteMany()
 
-  // Create 10 classes
+  // ── Admin user ──────────────────────────────────────────────────────────────
+  await db.user.create({
+    data: {
+      email: 'spoidanid4454@gmail.com',
+      name: 'Spoid Admin',
+      role: 'admin',
+    },
+  })
+  console.log('✅ Utilisateur admin créé (email: spoidanid4454@gmail.com)')
+
+  // ── School Settings ─────────────────────────────────────────────────────────
+  await db.schoolSettings.create({
+    data: {
+      schoolName: 'École Primaire Modèle',
+      address: 'Avenue de l\'Indépendance, Bujumbura',
+      phone: '+257 22 22 22 22',
+      email: 'ecole@exemple.bi',
+      directorName: 'M. Jean Hakizimana',
+    },
+  })
+  console.log('✅ Paramètres de l\'école créés')
+
+  // ── School Year ─────────────────────────────────────────────────────────────
+  await db.schoolYear.create({
+    data: {
+      name: '2025-2026',
+      startDate: new Date('2025-09-01'),
+      endDate: new Date('2026-06-30'),
+      isActive: true,
+    },
+  })
+  console.log('✅ Année scolaire 2025-2026 créée')
+
+  // ── Classes ─────────────────────────────────────────────────────────────────
   const classData = [
-    { name: 'Grade 1A', section: 'A', gradeLevel: '1', capacity: 30 },
-    { name: 'Grade 1B', section: 'B', gradeLevel: '1', capacity: 30 },
-    { name: 'Grade 2A', section: 'A', gradeLevel: '2', capacity: 35 },
-    { name: 'Grade 2B', section: 'B', gradeLevel: '2', capacity: 35 },
-    { name: 'Grade 3A', section: 'A', gradeLevel: '3', capacity: 35 },
-    { name: 'Grade 4A', section: 'A', gradeLevel: '4', capacity: 40 },
-    { name: 'Grade 5A', section: 'A', gradeLevel: '5', capacity: 40 },
-    { name: 'Grade 6A', section: 'A', gradeLevel: '6', capacity: 40 },
-    { name: 'Grade 7A', section: 'A', gradeLevel: '7', capacity: 35 },
-    { name: 'Grade 8A', section: 'A', gradeLevel: '8', capacity: 35 },
+    { name: '1ère Année A', section: 'A', gradeLevel: '1', capacity: 35 },
+    { name: '1ère Année B', section: 'B', gradeLevel: '1', capacity: 35 },
+    { name: '2ème Année A', section: 'A', gradeLevel: '2', capacity: 35 },
+    { name: '2ème Année B', section: 'B', gradeLevel: '2', capacity: 35 },
+    { name: '3ème Année A', section: 'A', gradeLevel: '3', capacity: 40 },
+    { name: '4ème Année A', section: 'A', gradeLevel: '4', capacity: 40 },
+    { name: '5ème Année A', section: 'A', gradeLevel: '5', capacity: 40 },
+    { name: '6ème Année A', section: 'A', gradeLevel: '6', capacity: 40 },
+    { name: '7ème Année A', section: 'A', gradeLevel: '7', capacity: 35 },
+    { name: '8ème Année A', section: 'A', gradeLevel: '8', capacity: 35 },
   ]
 
   const classes = await Promise.all(
     classData.map(d => db.class.create({ data: d }))
   )
-  console.log(`✅ Created ${classes.length} classes`)
+  console.log(`✅ ${classes.length} classes créées`)
 
-  // Fee structures per class
-  const feeAmounts = [150, 150, 175, 175, 200, 225, 250, 275, 300, 325]
+  // ── Fee Structures (in BIF) ─────────────────────────────────────────────────
+  const feeAmounts = [15000, 15000, 18000, 18000, 20000, 22000, 25000, 28000, 30000, 32000]
   for (let i = 0; i < classes.length; i++) {
     const cls = classes[i]
     const base = feeAmounts[i]
     await db.feeStructure.createMany({
       data: [
-        { classId: cls.id, name: 'Monthly Tuition', amount: base, period: 'monthly' },
-        { classId: cls.id, name: 'Activity Fee', amount: 25, period: 'monthly' },
-        { classId: cls.id, name: 'Annual Registration', amount: 200, period: 'annual' },
+        { classId: cls.id, name: 'Frais de scolarité mensuel', amount: base, period: 'monthly' },
+        { classId: cls.id, name: 'Frais d\'activités', amount: 2500, period: 'monthly' },
+        { classId: cls.id, name: 'Inscription annuelle', amount: 20000, period: 'annual' },
       ],
     })
   }
-  console.log('✅ Created fee structures')
+  console.log('✅ Structures de frais créées')
 
-  // Create 155 students (15-17 per class)
+  // ── Students ────────────────────────────────────────────────────────────────
   let rollCounter = 1001
   const allStudents: { id: string }[] = []
 
   for (const cls of classes) {
     const count = randInt(14, 17)
     for (let i = 0; i < count; i++) {
-      const first = rand(firstNames)
-      const last = rand(lastNames)
-      const parentFirst = rand(firstNames)
+      const isFemale = Math.random() > 0.5
+      const prenom = isFemale ? rand(prenomsF) : rand(prenomsM)
+      const nom = rand(noms)
+      const prenomParent = isFemale ? rand(prenomsM) : rand(prenomsF)
+
       const s = await db.student.create({
         data: {
-          name: `${first} ${last}`,
+          name: `${prenom} ${nom}`,
           rollNumber: String(rollCounter++),
           classId: cls.id,
-          gender: Math.random() > 0.5 ? 'male' : 'female',
-          parentName: `${parentFirst} ${last}`,
-          parentPhone: `+1 ${randInt(200, 999)}-${randInt(100, 999)}-${randInt(1000, 9999)}`,
-          parentEmail: `${parentFirst.toLowerCase()}.${last.toLowerCase()}@email.com`,
-          address: `${randInt(1, 999)} ${rand(['Oak', 'Maple', 'Pine', 'Cedar', 'Elm'])} ${rand(['St', 'Ave', 'Blvd', 'Dr'])}`,
+          gender: isFemale ? 'féminin' : 'masculin',
+          parentName: `${prenomParent} ${nom}`,
+          parentPhone: `+257 ${randInt(61, 79)} ${randInt(10, 99)} ${randInt(10, 99)} ${randInt(10, 99)}`,
+          parentEmail: `${prenomParent.toLowerCase()}.${nom.toLowerCase()}@gmail.com`,
+          address: `Quartier ${rand(['Rohero', 'Nyakabiga', 'Ngagara', 'Cibitoke', 'Mutanga', 'Kinama'])}, Bujumbura`,
           isActive: Math.random() > 0.05,
         },
       })
       allStudents.push(s)
     }
   }
-  console.log(`✅ Created ${allStudents.length} students`)
+  console.log(`✅ ${allStudents.length} élèves créés`)
 
-  // Create payments for students (last 90 days)
+  // ── Payments (in BIF) ───────────────────────────────────────────────────────
   let paymentCount = 0
+  const methods = ['espèces', 'virement bancaire', 'mobile money', 'chèque']
   for (const s of allStudents) {
     const numPayments = randInt(1, 5)
     for (let i = 0; i < numPayments; i++) {
-      const methods = ['cash', 'bank transfer', 'check', 'online']
       await db.payment.create({
         data: {
           studentId: s.id,
-          amount: randInt(100, 400),
+          amount: randInt(10000, 40000),
           date: daysAgo(randInt(0, 90)),
           method: rand(methods),
           reference: Math.random() > 0.5 ? `REF-${randInt(10000, 99999)}` : null,
@@ -123,32 +167,32 @@ async function main() {
       paymentCount++
     }
   }
-  console.log(`✅ Created ${paymentCount} payments`)
+  console.log(`✅ ${paymentCount} paiements créés`)
 
-  // Inventory items
+  // ── Inventory (in BIF) ──────────────────────────────────────────────────────
   const inventoryItems = await db.inventoryItem.createManyAndReturn({
     data: [
-      { name: 'School Shirt (S)', type: 'uniform', price: 18, stock: 150 },
-      { name: 'School Shirt (M)', type: 'uniform', price: 18, stock: 120 },
-      { name: 'School Shirt (L)', type: 'uniform', price: 18, stock: 80 },
-      { name: 'School Trousers (S)', type: 'uniform', price: 25, stock: 100 },
-      { name: 'School Trousers (M)', type: 'uniform', price: 25, stock: 90 },
-      { name: 'School Jacket', type: 'uniform', price: 45, stock: 60 },
-      { name: 'School Tie', type: 'uniform', price: 12, stock: 200 },
-      { name: 'PE Kit', type: 'uniform', price: 35, stock: 75 },
-      { name: 'Mathematics Textbook Gr.1-3', type: 'book', price: 22, stock: 80 },
-      { name: 'English Textbook Gr.1-3', type: 'book', price: 20, stock: 80 },
-      { name: 'Science Textbook Gr.4-6', type: 'book', price: 28, stock: 60 },
-      { name: 'History Textbook Gr.4-6', type: 'book', price: 24, stock: 55 },
-      { name: 'Mathematics Workbook', type: 'book', price: 15, stock: 100 },
-      { name: 'English Workbook', type: 'book', price: 14, stock: 100 },
-      { name: 'School Bag', type: 'other', price: 35, stock: 50 },
-      { name: 'Water Bottle', type: 'other', price: 8, stock: 120 },
+      { name: 'Chemise scolaire (S)', type: 'uniform', price: 8000, stock: 150 },
+      { name: 'Chemise scolaire (M)', type: 'uniform', price: 8000, stock: 120 },
+      { name: 'Chemise scolaire (L)', type: 'uniform', price: 8000, stock: 80 },
+      { name: 'Pantalon scolaire (S)', type: 'uniform', price: 12000, stock: 100 },
+      { name: 'Pantalon scolaire (M)', type: 'uniform', price: 12000, stock: 90 },
+      { name: 'Veste scolaire', type: 'uniform', price: 22000, stock: 60 },
+      { name: 'Cravate scolaire', type: 'uniform', price: 5000, stock: 200 },
+      { name: 'Tenue de sport', type: 'uniform', price: 15000, stock: 75 },
+      { name: 'Livre Mathématiques 1ère-3ème', type: 'book', price: 10000, stock: 80 },
+      { name: 'Livre Français 1ère-3ème', type: 'book', price: 9000, stock: 80 },
+      { name: 'Livre Sciences 4ème-6ème', type: 'book', price: 13000, stock: 60 },
+      { name: 'Livre Histoire-Géo 4ème-6ème', type: 'book', price: 11000, stock: 55 },
+      { name: 'Cahier d\'exercices Maths', type: 'book', price: 6000, stock: 100 },
+      { name: 'Cahier d\'exercices Français', type: 'book', price: 6000, stock: 100 },
+      { name: 'Sac scolaire', type: 'other', price: 18000, stock: 50 },
+      { name: 'Bouteille d\'eau', type: 'other', price: 3500, stock: 120 },
     ],
   })
-  console.log(`✅ Created ${inventoryItems.length} inventory items`)
+  console.log(`✅ ${inventoryItems.length} articles d'inventaire créés`)
 
-  // Sales (last 60 days)
+  // ── Sales ───────────────────────────────────────────────────────────────────
   let salesCount = 0
   for (let i = 0; i < 80; i++) {
     const item = rand(inventoryItems)
@@ -166,37 +210,36 @@ async function main() {
           date: daysAgo(randInt(0, 60)),
         },
       })
-      // Update stock in memory for next iteration (not in DB for seeding speed)
       item.stock -= qty
       salesCount++
     }
   }
-  console.log(`✅ Created ${salesCount} sales`)
+  console.log(`✅ ${salesCount} ventes créées`)
 
-  // Bank deposits
-  const depositSources = ['Fee Collection', 'Government Grant', 'Donation', 'Sports Event', 'Annual Fund']
+  // ── Deposits (in BIF) ───────────────────────────────────────────────────────
+  const depositSources = ['Collecte de frais', 'Subvention gouvernementale', 'Don', 'Événement sportif', 'Fonds annuel']
   for (let i = 0; i < 15; i++) {
     await db.deposit.create({
       data: {
         date: daysAgo(randInt(0, 90)),
-        amount: randInt(500, 5000),
+        amount: randInt(500000, 5000000),
         source: rand(depositSources),
-        bankName: rand(['First National Bank', 'City Bank', 'School Credit Union']),
+        bankName: rand(['Banque de Crédit de Bujumbura', 'Ecobank Burundi', 'Banque Commerciale du Burundi']),
         reference: `DEP-${randInt(10000, 99999)}`,
       },
     })
   }
-  console.log('✅ Created deposits')
+  console.log('✅ Dépôts bancaires créés')
 
-  // Expenses
+  // ── Expenses (in BIF) ───────────────────────────────────────────────────────
   const expenseData = [
-    { category: 'Salaries', min: 2000, max: 5000 },
-    { category: 'Utilities', min: 200, max: 800 },
-    { category: 'Maintenance', min: 100, max: 600 },
-    { category: 'Supplies', min: 50, max: 300 },
-    { category: 'Equipment', min: 500, max: 3000 },
-    { category: 'Food', min: 100, max: 500 },
-    { category: 'Transport', min: 150, max: 700 },
+    { category: 'Salaires', min: 2000000, max: 5000000 },
+    { category: 'Services publics', min: 200000, max: 800000 },
+    { category: 'Maintenance', min: 100000, max: 600000 },
+    { category: 'Fournitures', min: 50000, max: 300000 },
+    { category: 'Équipements', min: 500000, max: 3000000 },
+    { category: 'Alimentation', min: 100000, max: 500000 },
+    { category: 'Transport', min: 150000, max: 700000 },
   ]
   for (let i = 0; i < 25; i++) {
     const cat = rand(expenseData)
@@ -205,18 +248,34 @@ async function main() {
         date: daysAgo(randInt(0, 90)),
         amount: randInt(cat.min, cat.max),
         category: cat.category,
-        description: `${cat.category} expense`,
-        payee: rand(['Staff Payroll', 'City Utilities', 'Local Supplier', 'Tech Vendor', 'Vendor Co.']),
+        description: `Dépense — ${cat.category}`,
+        payee: rand(['Fournisseur Local', 'Régie des Services', 'Prestataire Tech', 'Fournitures Scolaires SA']),
       },
     })
   }
-  console.log('✅ Created expenses')
+  console.log('✅ Dépenses créées')
 
-  console.log('\n🎉 Database seeded successfully!')
+  // ── Staff Members ───────────────────────────────────────────────────────────
+  const staffData = [
+    { name: 'Jean-Baptiste Nkurunziza', role: 'Directeur adjoint', monthlySalary: 350000 },
+    { name: 'Marie-Claire Ndayishimiye', role: 'Enseignante — Français', monthlySalary: 280000 },
+    { name: 'André Hakizimana', role: 'Enseignant — Mathématiques', monthlySalary: 280000 },
+    { name: 'Sophie Bizimana', role: 'Enseignante — Sciences', monthlySalary: 280000 },
+    { name: 'Pierre Ntahompagaze', role: 'Agent administratif', monthlySalary: 220000 },
+    { name: 'Céline Niyonzima', role: 'Comptable', monthlySalary: 260000 },
+  ]
+
+  const staffMembers = await Promise.all(
+    staffData.map(s => db.staffMember.create({ data: s }))
+  )
+  console.log(`✅ ${staffMembers.length} membres du personnel créés`)
+
+  console.log('\n🎉 Base de données initialisée avec succès !')
   console.log(`   Classes: ${classes.length}`)
-  console.log(`   Students: ${allStudents.length}`)
-  console.log(`   Payments: ${paymentCount}`)
-  console.log(`   Sales: ${salesCount}`)
+  console.log(`   Élèves: ${allStudents.length}`)
+  console.log(`   Paiements: ${paymentCount}`)
+  console.log(`   Ventes: ${salesCount}`)
+  console.log(`   Personnel: ${staffMembers.length}`)
 }
 
 main()

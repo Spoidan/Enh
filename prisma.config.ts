@@ -9,6 +9,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Use direct (non-pooled) URL for migrations so Prisma's schema engine
+    // can use prepared statements (required by Supabase's transaction pooler).
+    // Falls back to DATABASE_URL if DIRECT_URL is not set.
+    url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
   },
 });
