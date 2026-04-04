@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
@@ -12,7 +12,6 @@
     "db:reset": "npx prisma migrate reset --force && npx tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.0.8",
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
     "@radix-ui/react-avatar": "^1.1.11",
