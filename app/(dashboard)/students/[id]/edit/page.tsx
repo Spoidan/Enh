@@ -28,7 +28,11 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
     })
   }, [id])
 
-  if (!student) return <div className="p-6 text-muted-foreground">Loading...</div>
+  if (!student) return <div className="p-6 text-muted-foreground">Chargement...</div>
+
+  const dobValue = student.dateOfBirth
+    ? new Date(student.dateOfBirth).toISOString().split('T')[0]
+    : ''
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -44,11 +48,12 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
           parentEmail: (fd.get('parentEmail') as string) || undefined,
           address: (fd.get('address') as string) || undefined,
           gender: (fd.get('gender') as string) || undefined,
+          dateOfBirth: (fd.get('dateOfBirth') as string) || undefined,
         })
-        toast.success('Student updated')
+        toast.success('Élève mis à jour')
         router.push(`/students/${id}`)
       } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : 'Update failed')
+        toast.error(err instanceof Error ? err.message : 'Échec de la mise à jour')
       }
     })
   }
@@ -59,26 +64,26 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
         <Button variant="ghost" size="icon" asChild>
           <Link href={`/students/${id}`}><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
-        <h1 className="text-2xl font-bold">Edit Student</h1>
+        <h1 className="text-2xl font-bold">Modifier l&apos;élève</h1>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Student Information</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Informations de l&apos;élève</CardTitle></CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Full Name *</Label>
+                <Label>Nom complet *</Label>
                 <Input name="name" defaultValue={student.name} required />
               </div>
               <div className="space-y-1.5">
-                <Label>Roll Number *</Label>
+                <Label>Matricule *</Label>
                 <Input name="rollNumber" defaultValue={student.rollNumber} required />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Class *</Label>
+                <Label>Classe *</Label>
                 <Select name="classId" defaultValue={student.classId}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -89,37 +94,41 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Gender</Label>
-                <Select name="gender" defaultValue={student.gender ?? ''}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Date de naissance</Label>
+                <Input name="dateOfBirth" type="date" defaultValue={dobValue} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Parent Name</Label>
+              <Label>Genre</Label>
+              <Select name="gender" defaultValue={student.gender ?? ''}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Masculin</SelectItem>
+                  <SelectItem value="female">Féminin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Nom du parent</Label>
               <Input name="parentName" defaultValue={student.parentName ?? ''} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Parent Phone</Label>
+                <Label>Téléphone parent</Label>
                 <Input name="parentPhone" defaultValue={student.parentPhone ?? ''} />
               </div>
               <div className="space-y-1.5">
-                <Label>Parent Email</Label>
+                <Label>Email parent</Label>
                 <Input name="parentEmail" type="email" defaultValue={student.parentEmail ?? ''} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Address</Label>
+              <Label>Adresse</Label>
               <Input name="address" defaultValue={student.address ?? ''} />
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-              <Button type="submit" disabled={isPending}>{isPending ? 'Saving...' : 'Save Changes'}</Button>
+              <Button type="button" variant="outline" onClick={() => router.back()}>Annuler</Button>
+              <Button type="submit" disabled={isPending}>{isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
             </div>
           </form>
         </CardContent>

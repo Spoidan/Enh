@@ -9,12 +9,14 @@ const ExtraFeeSchema = z.object({
   studentId: z.string().min(1),
   description: z.string().min(1, 'La description est requise'),
   amount: z.number().positive('Le montant doit être positif'),
+  trimester: z.number().int().min(1).max(3).optional(),
 })
 
 export async function addExtraFee(data: {
   studentId: string
   description: string
   amount: number
+  trimester?: number
 }) {
   await requireAuth()
 

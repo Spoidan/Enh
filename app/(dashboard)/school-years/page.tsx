@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { migrateStudentsToActiveYear } from '@/lib/actions/enrollments'
 import {
   getSchoolYears,
   createSchoolYear,
@@ -53,6 +54,11 @@ type YearFeeStructure = {
   classId: string
   amount: number
   description: string | null
+  paymentFrequency: string
+  amountT1: number | null
+  amountT2: number | null
+  amountT3: number | null
+  specificTrimester: number | null
   class: { id: string; name: string; gradeLevel: string | null }
 }
 
@@ -84,6 +90,7 @@ export default function SchoolYearsPage() {
   const [showAddYear, setShowAddYear] = useState(false)
   const [showAddTerm, setShowAddTerm] = useState<string | null>(null) // schoolYearId
   const [showAddFee, setShowAddFee] = useState<string | null>(null)   // schoolYearId
+  const [feeFrequency, setFeeFrequency] = useState('annual_t1')
 
   const load = () => {
     Promise.all([getSchoolYears(), getClasses()]).then(([ys, cls]) => {
@@ -196,12 +203,23 @@ export default function SchoolYearsPage() {
     e.preventDefault()
     if (!showAddFee) return
     const fd = new FormData(e.currentTarget)
+    const freq = fd.get('paymentFrequency') as string
     startTransition(async () => {
+      const baseAmount = freq === 'per_trimester'
+        ? (Number(fd.get('amountT1')) || 0) + (Number(fd.get('amountT2')) || 0) + (Number(fd.get('amountT3')) || 0)
+        : Number(fd.get('amount')) || 0
       await upsertYearFeeStructure(
         showAddFee,
         fd.get('classId') as string,
-        Number(fd.get('amount')),
-        (fd.get('description') as string) || undefined
+        baseAmount,
+        (fd.get('description') as string) || undefined,
+        {
+          paymentFrequency: freq,
+          amountT1: freq === 'per_trimester' ? Number(fd.get('amountT1')) || undefined : undefined,
+          amountT2: freq === 'per_trimester' ? Number(fd.get('amountT2')) || undefined : undefined,
+          amountT3: freq === 'per_trimester' ? Number(fd.get('amountT3')) || undefined : undefined,
+          specificTrimester: freq === 'specific_trimester' ? Number(fd.get('specificTrimester')) || undefined : undefined,
+        }
       )
       toast.success('Frais enregistrés')
       setShowAddFee(null)
@@ -224,17 +242,33 @@ export default function SchoolYearsPage() {
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Années scolaires</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             Gérez les années scolaires, trimestres et structures de frais
           </p>
         </div>
-        <Button onClick={() => setShowAddYear(true)}>
-          <Plus className="h-4 w-4" />
-          Nouvelle année
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isPending}
+            onClick={() => {
+              if (!confirm('Inscrire tous les élèves existants dans l\'année active ? Les inscriptions existantes ne seront pas modifiées.')) return
+              startTransition(async () => {
+                const result = await migrateStudentsToActiveYear()
+                toast.success(`Migration terminée : ${result.migrated} élève(s) inscrits`)
+              })
+            }}
+          >
+            Migrer les inscriptions
+          </Button>
+          <Button onClick={() => setShowAddYear(true)}>
+            <Plus className="h-4 w-4" />
+            Nouvelle année
+          </Button>
+        </div>
       </div>
 
       {/* Active years */}
@@ -438,33 +472,43 @@ export default function SchoolYearsPage() {
                               <tr>
                                 <th className="text-left font-medium px-3 py-2">Classe</th>
                                 <th className="text-right font-medium px-3 py-2">Montant annuel</th>
+                                <th className="text-left font-medium px-3 py-2">Fréquence</th>
                                 <th className="text-left font-medium px-3 py-2">Description</th>
                                 <th className="px-3 py-2" />
                               </tr>
                             </thead>
                             <tbody className="divide-y">
-                              {year.yearFeeStructures.map(fee => (
-                                <tr key={fee.id} className="hover:bg-muted/20">
-                                  <td className="px-3 py-2 font-medium">{fee.class.name}</td>
-                                  <td className="px-3 py-2 text-right tabular-nums">
-                                    {formatCurrency(fee.amount)}
-                                  </td>
-                                  <td className="px-3 py-2 text-muted-foreground text-xs">
-                                    {fee.description || '—'}
-                                  </td>
-                                  <td className="px-3 py-2 text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-destructive hover:text-destructive"
-                                      onClick={() => handleDeleteFee(fee.id)}
-                                      disabled={isPending}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </td>
-                                </tr>
-                              ))}
+                              {year.yearFeeStructures.map(fee => {
+                                const freqLabel =
+                                  fee.paymentFrequency === 'per_trimester' ? 'Par trimestre' :
+                                  fee.paymentFrequency === 'specific_trimester' ? `Trim. ${fee.specificTrimester}` :
+                                  '1er trimestre'
+                                return (
+                                  <tr key={fee.id} className="hover:bg-muted/20">
+                                    <td className="px-3 py-2 font-medium">{fee.class.name}</td>
+                                    <td className="px-3 py-2 text-right tabular-nums">
+                                      {formatCurrency(fee.amount)}
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                                      {freqLabel}
+                                    </td>
+                                    <td className="px-3 py-2 text-muted-foreground text-xs">
+                                      {fee.description || '—'}
+                                    </td>
+                                    <td className="px-3 py-2 text-right">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-destructive hover:text-destructive"
+                                        onClick={() => handleDeleteFee(fee.id)}
+                                        disabled={isPending}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                )
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -596,8 +640,8 @@ export default function SchoolYearsPage() {
       </Dialog>
 
       {/* Add/Update Fee */}
-      <Dialog open={!!showAddFee} onOpenChange={() => setShowAddFee(null)}>
-        <DialogContent>
+      <Dialog open={!!showAddFee} onOpenChange={() => { setShowAddFee(null); setFeeFrequency('annual_t1') }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Définir les frais pour une classe</DialogTitle>
           </DialogHeader>
@@ -616,17 +660,79 @@ export default function SchoolYearsPage() {
                   ))}
                 </select>
               </div>
+
               <div className="space-y-1.5">
-                <Label>Montant annuel total (BIF) *</Label>
-                <Input name="amount" type="number" min="0" step="100" required placeholder="ex. 150000" />
+                <Label>Fréquence de paiement *</Label>
+                <select
+                  name="paymentFrequency"
+                  value={feeFrequency}
+                  onChange={e => setFeeFrequency(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="annual_t1">Annuel — 1er trimestre</option>
+                  <option value="per_trimester">Par trimestre</option>
+                  <option value="specific_trimester">Trimestre spécifique</option>
+                </select>
               </div>
+
+              {/* Annual (1st trimester) */}
+              {feeFrequency === 'annual_t1' && (
+                <div className="space-y-1.5">
+                  <Label>Montant total (BIF) *</Label>
+                  <Input name="amount" type="number" min="0" step="100" required placeholder="ex. 150 000" />
+                  <p className="text-xs text-muted-foreground">Ce montant est dû intégralement au 1er trimestre.</p>
+                </div>
+              )}
+
+              {/* Per trimester */}
+              {feeFrequency === 'per_trimester' && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label>Trimestre 1 (BIF) *</Label>
+                    <Input name="amountT1" type="number" min="0" step="100" required placeholder="ex. 50 000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Trimestre 2 (BIF) *</Label>
+                    <Input name="amountT2" type="number" min="0" step="100" required placeholder="ex. 50 000" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Trimestre 3 (BIF) *</Label>
+                    <Input name="amountT3" type="number" min="0" step="100" required placeholder="ex. 50 000" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Le total annuel est la somme des trois trimestres.</p>
+                </div>
+              )}
+
+              {/* Specific trimester */}
+              {feeFrequency === 'specific_trimester' && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label>Trimestre concerné *</Label>
+                    <select
+                      name="specificTrimester"
+                      required
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="1">Trimestre 1</option>
+                      <option value="2">Trimestre 2</option>
+                      <option value="3">Trimestre 3</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Montant (BIF) *</Label>
+                    <Input name="amount" type="number" min="0" step="100" required placeholder="ex. 80 000" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Ce frais ne s&apos;applique qu&apos;au trimestre sélectionné.</p>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label>Description</Label>
                 <Input name="description" placeholder="ex. Frais de scolarité annuels" />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowAddFee(null)}>
+              <Button type="button" variant="outline" onClick={() => { setShowAddFee(null); setFeeFrequency('annual_t1') }}>
                 Annuler
               </Button>
               <Button type="submit" disabled={isPending}>Enregistrer</Button>

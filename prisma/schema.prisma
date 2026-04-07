@@ -45,16 +45,17 @@ model SchoolSettings {
 // ─── Academic Year ────────────────────────────────────────────────────────────
 
 model SchoolYear {
-  id                String             @id @default(cuid())
+  id                String               @id @default(cuid())
   name              String
   startDate         DateTime
   endDate           DateTime
-  isActive          Boolean            @default(false)
-  isArchived        Boolean            @default(false)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  isActive          Boolean              @default(false)
+  isArchived        Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
   terms             Term[]
   yearFeeStructures YearFeeStructure[]
+  enrollments       StudentEnrollment[]
 
   @@map("school_years")
 }
@@ -76,7 +77,7 @@ model Term {
 // ─── Core School Models ───────────────────────────────────────────────────────
 
 model Class {
-  id                String             @id @default(cuid())
+  id                String               @id @default(cuid())
   name              String
   section           String?
   gradeLevel        String?
@@ -84,18 +85,19 @@ model Class {
   students          Student[]
   feeStructures     FeeStructure[]
   yearFeeStructures YearFeeStructure[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  enrollments       StudentEnrollment[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   @@map("classes")
 }
 
 model Student {
-  id          String      @id @default(cuid())
+  id          String               @id @default(cuid())
   name        String
-  rollNumber  String      @unique
+  rollNumber  String               @unique
   classId     String
-  class       Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class       Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
   parentName  String?
   parentPhone String?
   parentEmail String?
@@ -103,14 +105,34 @@ model Student {
   address     String?
   dateOfBirth DateTime?
   gender      String?
-  isActive    Boolean     @default(true)
+  isActive    Boolean              @default(true)
   payments    Payment[]
   sales       Sale[]
   extraFees   ExtraFee[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  enrollments StudentEnrollment[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 
   @@map("students")
+}
+
+model StudentEnrollment {
+  id             String     @id @default(cuid())
+  studentId      String
+  schoolYearId   String
+  classId        String
+  enrollmentDate DateTime   @default(now())
+  status         String     @default("active") // active | inactive
+  inactiveReason String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  schoolYear SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  class      Class      @relation(fields: [classId], references: [id])
+
+  @@unique([studentId, schoolYearId])
+  @@map("student_enrollments")
 }
 
 model ExtraFee {
@@ -119,6 +141,7 @@ model ExtraFee {
   student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   description String
   amount      Float
+  trimester   Int?     // 1, 2, or 3 — null means applies to all
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -141,15 +164,20 @@ model FeeStructure {
 }
 
 model YearFeeStructure {
-  id           String     @id @default(cuid())
-  schoolYearId String
-  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
-  classId      String
-  class        Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
-  amount       Float
-  description  String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                String     @id @default(cuid())
+  schoolYearId      String
+  schoolYear        SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  classId           String
+  class             Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  amount            Float      // Total (used for annual_t1 or fallback)
+  description       String?
+  paymentFrequency  String     @default("annual_t1") // annual_t1 | per_trimester | specific_trimester
+  amountT1          Float?
+  amountT2          Float?
+  amountT3          Float?
+  specificTrimester Int?       // 1, 2, or 3 — used with specific_trimester
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   @@unique([schoolYearId, classId])
   @@map("year_fee_structures")

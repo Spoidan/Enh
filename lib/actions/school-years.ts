@@ -110,14 +110,44 @@ export async function upsertYearFeeStructure(
   schoolYearId: string,
   classId: string,
   amount: number,
-  description?: string
+  description?: string,
+  feeOptions?: {
+    paymentFrequency?: string
+    amountT1?: number
+    amountT2?: number
+    amountT3?: number
+    specificTrimester?: number
+  }
 ) {
   await requireAdmin()
 
+  const freq = feeOptions?.paymentFrequency ?? 'annual_t1'
+
+  // Compute canonical `amount` from frequency data
+  let canonicalAmount = amount
+  if (freq === 'per_trimester') {
+    const t1 = feeOptions?.amountT1 ?? 0
+    const t2 = feeOptions?.amountT2 ?? 0
+    const t3 = feeOptions?.amountT3 ?? 0
+    canonicalAmount = t1 + t2 + t3
+  } else if (freq === 'specific_trimester') {
+    canonicalAmount = amount
+  }
+
+  const data = {
+    amount: canonicalAmount,
+    description,
+    paymentFrequency: freq,
+    amountT1: feeOptions?.amountT1 ?? null,
+    amountT2: feeOptions?.amountT2 ?? null,
+    amountT3: feeOptions?.amountT3 ?? null,
+    specificTrimester: feeOptions?.specificTrimester ?? null,
+  }
+
   const result = await db.yearFeeStructure.upsert({
     where: { schoolYearId_classId: { schoolYearId, classId } },
-    create: { schoolYearId, classId, amount, description },
-    update: { amount, description },
+    create: { schoolYearId, classId, ...data },
+    update: data,
   })
 
   revalidatePath('/school-years')

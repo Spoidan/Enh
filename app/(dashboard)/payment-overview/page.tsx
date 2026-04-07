@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { Search, TrendingDown, TrendingUp, Users, Plus, Trash2, ChevronDown, ChevronUp, DollarSign } from 'lucide-react'
+import {
+  Search, TrendingDown, TrendingUp, Users, Plus, Trash2,
+  ChevronDown, ChevronUp, DollarSign, CalendarDays,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,11 +22,20 @@ import {
   type ClassPaymentOverview,
   type ExtraFeeSummary,
 } from '@/lib/actions/payment-overview'
+import { getSchoolYearsSimple } from '@/lib/actions/enrollments'
 import { addExtraFee, deleteExtraFee } from '@/lib/actions/extra-fees'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 
 type ClassOption = { id: string; name: string; gradeLevel: string | null; section: string | null }
+type SchoolYear = { id: string; name: string; isActive: boolean }
+
+const TRIMESTER_LABELS: Record<number, string> = {
+  0: 'Toute l\'année',
+  1: 'Trimestre 1',
+  2: 'Trimestre 2',
+  3: 'Trimestre 3',
+}
 
 function StatusBadge({ status }: { status: StudentPaymentSummary['status'] }) {
   if (status === 'paid') {
@@ -47,18 +59,21 @@ function AddExtraFeeModal({
 }) {
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
+  const [trimester, setTrimester] = useState('0')
   const [isPending, startTransition] = useTransition()
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const amt = parseFloat(amount)
     if (!description.trim() || isNaN(amt) || amt <= 0) return
+    const trimNum = parseInt(trimester)
 
     startTransition(async () => {
       const result = await addExtraFee({
         studentId: student.id,
         description: description.trim(),
         amount: amt,
+        trimester: trimNum > 0 ? trimNum : undefined,
       })
       if (result && 'error' in result) {
         toast.error(result.error)
@@ -101,6 +116,20 @@ function AddExtraFeeModal({
               required
             />
           </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Trimestre associé</label>
+            <Select value={trimester} onValueChange={setTrimester}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Toute l&apos;année</SelectItem>
+                <SelectItem value="1">Trimestre 1</SelectItem>
+                <SelectItem value="2">Trimestre 2</SelectItem>
+                <SelectItem value="3">Trimestre 3</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex gap-3 pt-1">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
@@ -135,7 +164,10 @@ function FeeBreakdown({
         </div>
         {student.extraFees.map((ef: ExtraFeeSummary) => (
           <div key={ef.id} className="flex justify-between items-center">
-            <span className="text-yellow-700">+ {ef.description}</span>
+            <span className="text-yellow-700">
+              + {ef.description}
+              {ef.trimester && <span className="text-xs ml-1 text-muted-foreground">(T{ef.trimester})</span>}
+            </span>
             <div className="flex items-center gap-2">
               <span className="text-yellow-700 tabular-nums">{formatCurrency(ef.amount)}</span>
               <button
@@ -166,10 +198,48 @@ function FeeBreakdown({
   )
 }
 
+// ── Fee Frequency Badge ───────────────────────────────────────────────────────
+function FeeFrequencyInfo({ feeStructure }: { feeStructure: ClassPaymentOverview['feeStructure'] }) {
+  if (!feeStructure) return null
+  const { paymentFrequency, amountT1, amountT2, amountT3, specificTrimester } = feeStructure
+
+  if (paymentFrequency === 'annual_t1') {
+    return (
+      <div className="rounded-lg border bg-blue-50 text-blue-700 px-3 py-2 text-xs flex items-center gap-2">
+        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+        <span>Frais annuels payables au <strong>1er trimestre</strong></span>
+      </div>
+    )
+  }
+  if (paymentFrequency === 'per_trimester') {
+    return (
+      <div className="rounded-lg border bg-blue-50 text-blue-700 px-3 py-2 text-xs flex items-center gap-2 flex-wrap">
+        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+        <span>Frais par trimestre :</span>
+        <span>T1 : {formatCurrency(amountT1 ?? 0)}</span>
+        <span>T2 : {formatCurrency(amountT2 ?? 0)}</span>
+        <span>T3 : {formatCurrency(amountT3 ?? 0)}</span>
+      </div>
+    )
+  }
+  if (paymentFrequency === 'specific_trimester') {
+    return (
+      <div className="rounded-lg border bg-blue-50 text-blue-700 px-3 py-2 text-xs flex items-center gap-2">
+        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+        <span>Frais dus uniquement au <strong>Trimestre {specificTrimester}</strong></span>
+      </div>
+    )
+  }
+  return null
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function PaymentOverviewPage() {
   const [classes, setClasses] = useState<ClassOption[]>([])
+  const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([])
   const [selectedClassId, setSelectedClassId] = useState<string>('')
+  const [selectedYearId, setSelectedYearId] = useState<string>('')
+  const [selectedTrimester, setSelectedTrimester] = useState<number>(0)
   const [overview, setOverview] = useState<ClassPaymentOverview | null>(null)
   const [search, setSearch] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -177,18 +247,29 @@ export default function PaymentOverviewPage() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    getClassesForOverview().then(data => setClasses(data as ClassOption[]))
+    Promise.all([getClassesForOverview(), getSchoolYearsSimple()]).then(([cls, years]) => {
+      setClasses(cls as ClassOption[])
+      setSchoolYears(years)
+      const active = years.find(y => y.isActive)
+      if (active) setSelectedYearId(active.id)
+    })
   }, [])
 
-  function loadOverview(classId: string) {
+  function loadOverview(classId: string, yearId?: string, trimester?: number) {
     if (!classId) { setOverview(null); return }
     startTransition(async () => {
-      const data = await getClassPaymentOverview(classId)
+      const data = await getClassPaymentOverview(classId, {
+        schoolYearId: yearId || selectedYearId || undefined,
+        trimester: trimester ?? selectedTrimester,
+      })
       setOverview(data)
     })
   }
 
-  useEffect(() => { loadOverview(selectedClassId) }, [selectedClassId])
+  useEffect(() => {
+    loadOverview(selectedClassId, selectedYearId, selectedTrimester)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClassId, selectedYearId, selectedTrimester])
 
   function toggleRow(id: string) {
     setExpandedRows(prev => {
@@ -200,7 +281,7 @@ export default function PaymentOverviewPage() {
   }
 
   function handleExtraFeeDeleted() {
-    loadOverview(selectedClassId)
+    loadOverview(selectedClassId, selectedYearId, selectedTrimester)
   }
 
   const filtered = overview?.students.filter(s =>
@@ -218,9 +299,26 @@ export default function PaymentOverviewPage() {
         <p className="text-muted-foreground text-sm mt-0.5">Situation des paiements par classe</p>
       </div>
 
-      {/* Class selector + search */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="w-72">
+      {/* Filters row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* School year */}
+        {schoolYears.length > 0 && (
+          <Select value={selectedYearId} onValueChange={setSelectedYearId}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Année scolaire..." />
+            </SelectTrigger>
+            <SelectContent>
+              {schoolYears.map(y => (
+                <SelectItem key={y.id} value={y.id}>
+                  {y.name}{y.isActive ? ' (active)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {/* Class */}
+        <div className="w-64">
           <Select value={selectedClassId} onValueChange={setSelectedClassId}>
             <SelectTrigger>
               <SelectValue placeholder="Sélectionner une classe..." />
@@ -233,6 +331,25 @@ export default function PaymentOverviewPage() {
           </Select>
         </div>
 
+        {/* Trimester tabs */}
+        {overview && (
+          <div className="flex rounded-lg border overflow-hidden">
+            {[0, 1, 2, 3].map(t => (
+              <button
+                key={t}
+                onClick={() => setSelectedTrimester(t)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors border-r last:border-r-0 ${
+                  selectedTrimester === t
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted/50 text-muted-foreground'
+                }`}
+              >
+                {t === 0 ? 'Annuel' : `T${t}`}
+              </button>
+            ))}
+          </div>
+        )}
+
         {overview && (
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -240,11 +357,16 @@ export default function PaymentOverviewPage() {
               placeholder="Rechercher un élève..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-9 w-64"
+              className="pl-9 w-56"
             />
           </div>
         )}
       </div>
+
+      {/* Fee frequency info */}
+      {overview?.feeStructure && (
+        <FeeFrequencyInfo feeStructure={overview.feeStructure} />
+      )}
 
       {/* Summary cards */}
       {overview && (
@@ -254,6 +376,7 @@ export default function PaymentOverviewPage() {
               <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium">
                 <DollarSign className="h-3.5 w-3.5" />
                 Frais attendus
+                {selectedTrimester > 0 && <span className="text-primary">(T{selectedTrimester})</span>}
               </div>
               <p className="text-xl font-bold">{formatCurrency(overview.summary.totalExpected)}</p>
               <p className="text-xs text-muted-foreground">{filtered.length} élèves</p>
@@ -287,7 +410,10 @@ export default function PaymentOverviewPage() {
           {/* Progress bar */}
           <div className="rounded-xl border bg-card p-4 space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="font-medium">Taux de recouvrement — {selectedClass?.name}</span>
+              <span className="font-medium">
+                Taux de recouvrement — {selectedClass?.name}
+                {selectedTrimester > 0 && ` (${TRIMESTER_LABELS[selectedTrimester]})`}
+              </span>
               <span className="text-muted-foreground">
                 {overview.summary.totalExpected > 0
                   ? Math.round((overview.summary.totalCollected / overview.summary.totalExpected) * 100)
@@ -317,8 +443,11 @@ export default function PaymentOverviewPage() {
                 <tr>
                   <th className="text-left font-medium px-4 py-3 w-8"></th>
                   <th className="text-left font-medium px-4 py-3">Élève</th>
-                  <th className="text-left font-medium px-4 py-3">N° d&apos;immatriculation</th>
-                  <th className="text-right font-medium px-4 py-3">Frais attendus</th>
+                  <th className="text-left font-medium px-4 py-3">N° matricule</th>
+                  <th className="text-right font-medium px-4 py-3">
+                    Frais attendus
+                    {selectedTrimester > 0 && <span className="text-primary ml-1">(T{selectedTrimester})</span>}
+                  </th>
                   <th className="text-right font-medium px-4 py-3">Montant payé</th>
                   <th className="text-right font-medium px-4 py-3">Solde</th>
                   <th className="text-center font-medium px-4 py-3">Statut</th>
@@ -333,7 +462,7 @@ export default function PaymentOverviewPage() {
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
-                      {search ? 'Aucun élève trouvé.' : 'Aucun élève dans cette classe.'}
+                      {search ? 'Aucun élève trouvé.' : 'Aucun élève dans cette classe pour cette année.'}
                     </td>
                   </tr>
                 ) : (
@@ -419,7 +548,7 @@ export default function PaymentOverviewPage() {
         <AddExtraFeeModal
           student={addFeeFor}
           onClose={() => setAddFeeFor(null)}
-          onAdded={() => loadOverview(selectedClassId)}
+          onAdded={() => loadOverview(selectedClassId, selectedYearId, selectedTrimester)}
         />
       )}
     </div>

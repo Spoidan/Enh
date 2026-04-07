@@ -13,6 +13,7 @@ export type ExtraFeeSummary = {
   id: string
   description: string
   amount: number
+  trimester: number | null
 }
 
 export type StudentPaymentSummary = {
@@ -26,6 +27,7 @@ export type StudentPaymentSummary = {
   totalPaid: number
   balance: number
   status: 'paid' | 'partial' | 'unpaid'
+  enrollmentStatus: string
 }
 
 export type ClassPaymentOverview = {
@@ -38,51 +40,132 @@ export type ClassPaymentOverview = {
     countPartial: number
     countUnpaid: number
   }
+  feeStructure: {
+    paymentFrequency: string
+    amountT1: number | null
+    amountT2: number | null
+    amountT3: number | null
+    specificTrimester: number | null
+  } | null
+}
+
+/**
+ * Compute expected fee for a trimester from the fee structure.
+ * trimester=0 means "all year" (no trimester filter).
+ */
+function computeExpectedFee(
+  yearFee: {
+    amount: number
+    paymentFrequency: string
+    amountT1: number | null
+    amountT2: number | null
+    amountT3: number | null
+    specificTrimester: number | null
+  } | null,
+  fallbackFee: number,
+  trimester: number // 0=all, 1, 2, 3
+): number {
+  if (!yearFee) return fallbackFee
+
+  const freq = yearFee.paymentFrequency
+
+  if (trimester === 0) {
+    // Full year total
+    return yearFee.amount
+  }
+
+  if (freq === 'annual_t1') {
+    return trimester === 1 ? yearFee.amount : 0
+  }
+
+  if (freq === 'per_trimester') {
+    if (trimester === 1) return yearFee.amountT1 ?? 0
+    if (trimester === 2) return yearFee.amountT2 ?? 0
+    if (trimester === 3) return yearFee.amountT3 ?? 0
+    return 0
+  }
+
+  if (freq === 'specific_trimester') {
+    return trimester === yearFee.specificTrimester ? yearFee.amount : 0
+  }
+
+  return yearFee.amount
 }
 
 export async function getClassPaymentOverview(
-  classId: string
+  classId: string,
+  options?: {
+    schoolYearId?: string
+    trimester?: number // 0=all, 1, 2, 3
+  }
 ): Promise<ClassPaymentOverview> {
-  // Try to get year fee structure for active school year first
-  const activeYear = await db.schoolYear.findFirst({
-    where: { isActive: true },
-    include: {
-      yearFeeStructures: { where: { classId } },
-    },
-  })
+  const trimester = options?.trimester ?? 0
 
-  const students = await db.student.findMany({
-    where: { classId, isActive: true },
-    include: {
-      payments: true,
-      extraFees: { orderBy: { createdAt: 'asc' } },
-      class: {
-        include: {
-          feeStructures: { where: { isActive: true } },
+  // Get the target school year (specified or active)
+  const schoolYear = options?.schoolYearId
+    ? await db.schoolYear.findUnique({
+        where: { id: options.schoolYearId },
+        include: { yearFeeStructures: { where: { classId } } },
+      })
+    : await db.schoolYear.findFirst({
+        where: { isActive: true },
+        include: { yearFeeStructures: { where: { classId } } },
+      })
+
+  const yearFee = schoolYear?.yearFeeStructures[0] ?? null
+
+  // Get students enrolled in this class for the school year
+  let students
+  if (schoolYear) {
+    const enrollments = await db.studentEnrollment.findMany({
+      where: { schoolYearId: schoolYear.id, classId, status: 'active' },
+      include: {
+        student: {
+          include: {
+            payments: true,
+            extraFees: { orderBy: { createdAt: 'asc' } },
+            class: { include: { feeStructures: { where: { isActive: true } } } },
+          },
         },
       },
-    },
-    orderBy: { name: 'asc' },
-  })
+      orderBy: { student: { name: 'asc' } },
+    })
+    students = enrollments.map(e => ({ ...e.student, enrollmentStatus: e.status }))
+  } else {
+    // Fallback: no school year — show all active students in class
+    const rawStudents = await db.student.findMany({
+      where: { classId, isActive: true },
+      include: {
+        payments: true,
+        extraFees: { orderBy: { createdAt: 'asc' } },
+        class: { include: { feeStructures: { where: { isActive: true } } } },
+      },
+      orderBy: { name: 'asc' },
+    })
+    students = rawStudents.map(s => ({ ...s, enrollmentStatus: 'active' }))
+  }
+
+  const fallbackFee = students[0]?.class.feeStructures.reduce((s, f) => s + f.amount, 0) ?? 0
 
   const studentsWithSummary: StudentPaymentSummary[] = students.map(student => {
-    // Use year fee structure if available, otherwise fall back to class fee structures
-    let baseFee: number
-    const yearFee = activeYear?.yearFeeStructures.find(f => f.classId === classId)
-    if (yearFee) {
-      baseFee = yearFee.amount
-    } else {
-      baseFee = student.class.feeStructures.reduce((sum, f) => sum + f.amount, 0)
-    }
+    const baseFee = computeExpectedFee(yearFee, fallbackFee, trimester)
 
-    const extraFeeItems: ExtraFeeSummary[] = student.extraFees.map(ef => ({
-      id: ef.id,
-      description: ef.description,
-      amount: ef.amount,
-    }))
+    // Filter extra fees by trimester
+    const extraFeeItems: ExtraFeeSummary[] = student.extraFees
+      .filter(ef => {
+        if (trimester === 0) return true
+        if (ef.trimester === null) return true // applies to all trimesters
+        return ef.trimester === trimester
+      })
+      .map(ef => ({
+        id: ef.id,
+        description: ef.description,
+        amount: ef.amount,
+        trimester: ef.trimester ?? null,
+      }))
+
     const totalExtraFees = extraFeeItems.reduce((s, ef) => s + ef.amount, 0)
     const totalExpected = baseFee + totalExtraFees
-
     const totalPaid = student.payments.reduce((sum, p) => sum + p.amount, 0)
     const balance = totalExpected - totalPaid
 
@@ -102,6 +185,7 @@ export async function getClassPaymentOverview(
       totalPaid,
       balance,
       status,
+      enrollmentStatus: student.enrollmentStatus,
     }
   })
 
@@ -114,5 +198,15 @@ export async function getClassPaymentOverview(
     countUnpaid: studentsWithSummary.filter(s => s.status === 'unpaid').length,
   }
 
-  return { students: studentsWithSummary, summary }
+  const feeStructure = yearFee
+    ? {
+        paymentFrequency: yearFee.paymentFrequency,
+        amountT1: yearFee.amountT1,
+        amountT2: yearFee.amountT2,
+        amountT3: yearFee.amountT3,
+        specificTrimester: yearFee.specificTrimester,
+      }
+    : null
+
+  return { students: studentsWithSummary, summary, feeStructure }
 }
