@@ -16,6 +16,13 @@ export type ExtraFeeSummary = {
   trimester: number | null
 }
 
+export type DiscountSummary = {
+  id: string
+  description: string
+  amount: number
+  trimester: number | null
+}
+
 export type StudentPaymentSummary = {
   id: string
   name: string
@@ -23,6 +30,8 @@ export type StudentPaymentSummary = {
   baseFee: number
   extraFees: ExtraFeeSummary[]
   totalExtraFees: number
+  discounts: DiscountSummary[]
+  totalDiscounts: number
   totalExpected: number
   totalPaid: number
   balance: number
@@ -124,6 +133,7 @@ export async function getClassPaymentOverview(
           include: {
             payments: true,
             extraFees: { orderBy: { createdAt: 'asc' } },
+            discounts: { orderBy: { createdAt: 'asc' } },
             class: { include: { feeStructures: { where: { isActive: true } } } },
           },
         },
@@ -138,6 +148,7 @@ export async function getClassPaymentOverview(
       include: {
         payments: true,
         extraFees: { orderBy: { createdAt: 'asc' } },
+        discounts: { orderBy: { createdAt: 'asc' } },
         class: { include: { feeStructures: { where: { isActive: true } } } },
       },
       orderBy: { name: 'asc' },
@@ -165,7 +176,23 @@ export async function getClassPaymentOverview(
       }))
 
     const totalExtraFees = extraFeeItems.reduce((s, ef) => s + ef.amount, 0)
-    const totalExpected = baseFee + totalExtraFees
+
+    // Filter discounts by trimester
+    const discountItems: DiscountSummary[] = student.discounts
+      .filter(d => {
+        if (trimester === 0) return true
+        if (d.trimester === null) return true
+        return d.trimester === trimester
+      })
+      .map(d => ({
+        id: d.id,
+        description: d.description,
+        amount: d.amount,
+        trimester: d.trimester ?? null,
+      }))
+
+    const totalDiscounts = discountItems.reduce((s, d) => s + d.amount, 0)
+    const totalExpected = Math.max(0, baseFee + totalExtraFees - totalDiscounts)
     const totalPaid = student.payments.reduce((sum, p) => sum + p.amount, 0)
     const balance = totalExpected - totalPaid
 
@@ -181,6 +208,8 @@ export async function getClassPaymentOverview(
       baseFee,
       extraFees: extraFeeItems,
       totalExtraFees,
+      discounts: discountItems,
+      totalDiscounts,
       totalExpected,
       totalPaid,
       balance,

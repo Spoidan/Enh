@@ -21,9 +21,11 @@ import {
   type StudentPaymentSummary,
   type ClassPaymentOverview,
   type ExtraFeeSummary,
+  type DiscountSummary,
 } from '@/lib/actions/payment-overview'
 import { getSchoolYearsSimple } from '@/lib/actions/enrollments'
 import { addExtraFee, deleteExtraFee } from '@/lib/actions/extra-fees'
+import { addDiscount, deleteDiscount } from '@/lib/actions/discounts'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -145,13 +147,113 @@ function AddExtraFeeModal({
   )
 }
 
+// ── Add Discount Modal ───────────────────────────────────────────────────────
+function AddDiscountModal({
+  student,
+  onClose,
+  onAdded,
+}: {
+  student: { id: string; name: string }
+  onClose: () => void
+  onAdded: () => void
+}) {
+  const [description, setDescription] = useState('')
+  const [amount, setAmount] = useState('')
+  const [trimester, setTrimester] = useState('0')
+  const [isPending, startTransition] = useTransition()
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const amt = parseFloat(amount)
+    if (!description.trim() || isNaN(amt) || amt <= 0) return
+    const trimNum = parseInt(trimester)
+
+    startTransition(async () => {
+      const result = await addDiscount({
+        studentId: student.id,
+        description: description.trim(),
+        amount: amt,
+        trimester: trimNum > 0 ? trimNum : undefined,
+      })
+      if (result && 'error' in result) {
+        toast.error(result.error)
+      } else {
+        toast.success('Remise ajoutée')
+        onAdded()
+        onClose()
+      }
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-card border rounded-2xl shadow-xl w-full max-w-md space-y-5 p-6">
+        <div>
+          <h2 className="text-lg font-bold">Ajouter une remise</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Élève : <strong>{student.name}</strong></p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Description</label>
+            <Input
+              placeholder="Ex: Remise sociale, Bourse, Réduction famille..."
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Montant de la remise (BIF)</label>
+            <Input
+              type="number"
+              min="1"
+              step="1"
+              placeholder="0"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Trimestre associé</label>
+            <Select value={trimester} onValueChange={setTrimester}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Toute l&apos;année</SelectItem>
+                <SelectItem value="1">Trimestre 1</SelectItem>
+                <SelectItem value="2">Trimestre 2</SelectItem>
+                <SelectItem value="3">Trimestre 3</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+              Annuler
+            </Button>
+            <Button type="submit" className="flex-1" disabled={isPending}>
+              {isPending ? 'Enregistrement...' : 'Confirmer'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Fee Breakdown ────────────────────────────────────────────────────────────
 function FeeBreakdown({
   student,
-  onDelete,
+  onDeleteFee,
+  onDeleteDiscount,
 }: {
   student: StudentPaymentSummary
-  onDelete: (id: string) => void
+  onDeleteFee: (id: string) => void
+  onDeleteDiscount: (id: string) => void
 }) {
   const [isPending, startTransition] = useTransition()
 
@@ -176,13 +278,40 @@ function FeeBreakdown({
                     const result = await deleteExtraFee(ef.id)
                     if (result.success) {
                       toast.success('Frais supprimé')
-                      onDelete(ef.id)
+                      onDeleteFee(ef.id)
                     }
                   })
                 }}
                 disabled={isPending}
                 className="text-destructive hover:text-destructive/80 p-0.5 rounded"
                 title="Supprimer ce frais"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+        {student.discounts.map((d: DiscountSummary) => (
+          <div key={d.id} className="flex justify-between items-center">
+            <span className="text-blue-700">
+              − {d.description}
+              {d.trimester && <span className="text-xs ml-1 text-muted-foreground">(T{d.trimester})</span>}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-700 tabular-nums">-{formatCurrency(d.amount)}</span>
+              <button
+                onClick={() => {
+                  startTransition(async () => {
+                    const result = await deleteDiscount(d.id)
+                    if (result.success) {
+                      toast.success('Remise supprimée')
+                      onDeleteDiscount(d.id)
+                    }
+                  })
+                }}
+                disabled={isPending}
+                className="text-destructive hover:text-destructive/80 p-0.5 rounded"
+                title="Supprimer cette remise"
               >
                 <Trash2 className="h-3 w-3" />
               </button>
@@ -244,6 +373,7 @@ export default function PaymentOverviewPage() {
   const [search, setSearch] = useState('')
   const [isPending, startTransition] = useTransition()
   const [addFeeFor, setAddFeeFor] = useState<{ id: string; name: string } | null>(null)
+  const [addDiscountFor, setAddDiscountFor] = useState<{ id: string; name: string } | null>(null)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -495,6 +625,11 @@ export default function PaymentOverviewPage() {
                                 +{student.extraFees.length} extra
                               </span>
                             )}
+                            {student.discounts.length > 0 && (
+                              <span className="ml-1.5 inline-flex items-center rounded-full bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
+                                -{student.discounts.length} remise{student.discounts.length > 1 ? 's' : ''}
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{student.rollNumber}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(student.totalExpected)}</td>
@@ -504,15 +639,26 @@ export default function PaymentOverviewPage() {
                           </td>
                           <td className="px-4 py-3 text-center"><StatusBadge status={student.status} /></td>
                           <td className="px-4 py-3 text-center">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs gap-1"
-                              onClick={() => setAddFeeFor({ id: student.id, name: student.name })}
-                            >
-                              <Plus className="h-3 w-3" />
-                              Frais supp.
-                            </Button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1"
+                                onClick={() => setAddFeeFor({ id: student.id, name: student.name })}
+                              >
+                                <Plus className="h-3 w-3" />
+                                Frais supp.
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+                                onClick={() => setAddDiscountFor({ id: student.id, name: student.name })}
+                              >
+                                <Plus className="h-3 w-3" />
+                                Remise
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                         {isExpanded && (
@@ -520,7 +666,8 @@ export default function PaymentOverviewPage() {
                             <td colSpan={8} className="p-0">
                               <FeeBreakdown
                                 student={student}
-                                onDelete={handleExtraFeeDeleted}
+                                onDeleteFee={handleExtraFeeDeleted}
+                                onDeleteDiscount={handleExtraFeeDeleted}
                               />
                             </td>
                           </tr>
@@ -548,6 +695,15 @@ export default function PaymentOverviewPage() {
         <AddExtraFeeModal
           student={addFeeFor}
           onClose={() => setAddFeeFor(null)}
+          onAdded={() => loadOverview(selectedClassId, selectedYearId, selectedTrimester)}
+        />
+      )}
+
+      {/* Add Discount Modal */}
+      {addDiscountFor && (
+        <AddDiscountModal
+          student={addDiscountFor}
+          onClose={() => setAddDiscountFor(null)}
           onAdded={() => loadOverview(selectedClassId, selectedYearId, selectedTrimester)}
         />
       )}

@@ -109,6 +109,7 @@ model Student {
   payments    Payment[]
   sales       Sale[]
   extraFees   ExtraFee[]
+  discounts   Discount[]
   enrollments StudentEnrollment[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
@@ -146,6 +147,19 @@ model ExtraFee {
   updatedAt   DateTime @updatedAt
 
   @@map("extra_fees")
+}
+
+model Discount {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  description String
+  amount      Float
+  trimester   Int?     // 1, 2, or 3 — null means applies to all
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("discounts")
 }
 
 model FeeStructure {
