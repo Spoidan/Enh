@@ -168,7 +168,7 @@ export default async function StudentDetailPage({
                 Historique des paiements
               </CardTitle>
               <Button size="sm" asChild>
-                <Link href={`/payments/new?studentId=${id}`}>Ajouter paiement</Link>
+                <Link href={`/payments?studentId=${id}`}>Ajouter paiement</Link>
               </Button>
             </CardHeader>
             <CardContent>

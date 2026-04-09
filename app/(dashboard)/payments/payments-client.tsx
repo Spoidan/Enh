@@ -24,20 +24,21 @@ interface Props {
   total: number
   pages: number
   currentPage: number
+  preselectedStudentId?: string
 }
 
 const PAYMENT_METHODS = ['cash', 'bank transfer', 'check', 'online', 'card']
 
-export function PaymentsClient({ payments, total, pages, currentPage }: Props) {
+export function PaymentsClient({ payments, total, pages, currentPage, preselectedStudentId }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [showAdd, setShowAdd] = useState(false)
+  const [showAdd, setShowAdd] = useState(!!preselectedStudentId)
   const [adding, setAdding] = useState(false)
   const [students, setStudents] = useState<(Student & { class: Class })[]>([])
 
   useEffect(() => {
     if (showAdd) {
-      getStudents({ limit: 500 }).then(r => setStudents(r.students))
+      getStudents({ limit: 500, status: 'all' }).then(r => setStudents(r.students))
     }
   }, [showAdd])
 
@@ -185,7 +186,7 @@ export function PaymentsClient({ payments, total, pages, currentPage }: Props) {
             <div className="grid gap-4 py-4">
               <div className="space-y-1.5">
                 <Label>Student *</Label>
-                <Select name="studentId" required>
+                <Select name="studentId" required defaultValue={preselectedStudentId}>
                   <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
                   <SelectContent>
                     {students.map(s => (
