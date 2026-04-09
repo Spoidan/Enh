@@ -41,7 +41,7 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
       try {
         await updateStudent(id, {
           name: fd.get('name') as string,
-          rollNumber: fd.get('rollNumber') as string,
+          rollNumber: (fd.get('rollNumber') as string) || undefined,
           classId: fd.get('classId') as string,
           parentName: (fd.get('parentName') as string) || undefined,
           parentPhone: (fd.get('parentPhone') as string) || undefined,
@@ -77,8 +77,8 @@ export default function EditStudentPage({ params }: { params: Promise<{ id: stri
                 <Input name="name" defaultValue={student.name} required />
               </div>
               <div className="space-y-1.5">
-                <Label>Matricule *</Label>
-                <Input name="rollNumber" defaultValue={student.rollNumber} required />
+                <Label>Matricule</Label>
+                <Input name="rollNumber" defaultValue={student.rollNumber ?? ''} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

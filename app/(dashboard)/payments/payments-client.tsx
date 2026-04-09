@@ -36,8 +36,10 @@ export function PaymentsClient({ payments, total, pages, currentPage }: Props) {
   const [students, setStudents] = useState<(Student & { class: Class })[]>([])
 
   useEffect(() => {
-    getStudents({ limit: 500 }).then(r => setStudents(r.students))
-  }, [])
+    if (showAdd) {
+      getStudents({ limit: 500 }).then(r => setStudents(r.students))
+    }
+  }, [showAdd])
 
   const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

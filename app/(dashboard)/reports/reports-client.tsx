@@ -40,7 +40,7 @@ export function ReportsClient({ summary, chartData, students, classes, paymentSt
     downloadCSV(
       students.map(s => ({
         Nom: s.name,
-        'N° Immatriculation': s.rollNumber,
+        'N° Immatriculation': s.rollNumber ?? '',
         Classe: s.class.name,
         Parent: s.parentName ?? '',
         Téléphone: s.parentPhone ?? '',

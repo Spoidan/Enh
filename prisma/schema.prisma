@@ -95,7 +95,7 @@ model Class {
 model Student {
   id          String               @id @default(cuid())
   name        String
-  rollNumber  String               @unique
+  rollNumber  String?              @unique
   classId     String
   class       Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
   parentName  String?

@@ -55,7 +55,7 @@ export default async function ClassDetailPage({
                       <Link href={`/students/${s.id}`} className="text-sm font-medium hover:underline">
                         {s.name}
                       </Link>
-                      <p className="text-xs text-muted-foreground">#{s.rollNumber}</p>
+                      {s.rollNumber && <p className="text-xs text-muted-foreground">#{s.rollNumber}</p>}
                     </div>
                     <Badge variant={s.isActive ? 'success' : 'outline'} >
                       {s.isActive ? 'Actif' : 'Inactif'}

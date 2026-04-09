@@ -105,7 +105,7 @@ export function StudentsClient({
     try {
       await createStudent({
         name: fd.get('name') as string,
-        rollNumber: fd.get('rollNumber') as string,
+        rollNumber: (fd.get('rollNumber') as string) || undefined,
         classId: fd.get('classId') as string,
         parentName: (fd.get('parentName') as string) || undefined,
         parentPhone: (fd.get('parentPhone') as string) || undefined,
@@ -161,7 +161,7 @@ export function StudentsClient({
     downloadCSV(
       students.map(s => ({
         Nom: s.name,
-        Matricule: s.rollNumber,
+        Matricule: s.rollNumber ?? '',
         Classe: s.class.name,
         Statut: s.enrollmentStatus === 'inactive' ? 'Inactif' : 'Actif',
         'Date de naissance': s.dateOfBirth
@@ -301,7 +301,7 @@ export function StudentsClient({
 
                   return (
                     <tr key={s.id} className="border-b hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{s.rollNumber}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{s.rollNumber ?? '—'}</td>
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center">
                           <StatusDot status={enrollmentStatus} />
@@ -410,8 +410,8 @@ export function StudentsClient({
                   <Input id="name" name="name" required placeholder="Jean Dupont" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="rollNumber">Matricule *</Label>
-                  <Input id="rollNumber" name="rollNumber" required placeholder="2024001" />
+                  <Label htmlFor="rollNumber">Matricule</Label>
+                  <Input id="rollNumber" name="rollNumber" placeholder="2024001" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

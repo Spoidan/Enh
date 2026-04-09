@@ -416,7 +416,7 @@ export default function PaymentOverviewPage() {
 
   const filtered = overview?.students.filter(s =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.rollNumber.includes(search)
+    (s.rollNumber ?? '').includes(search)
   ) ?? []
 
   const selectedClass = classes.find(c => c.id === selectedClassId)
@@ -631,7 +631,7 @@ export default function PaymentOverviewPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{student.rollNumber}</td>
+                          <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{student.rollNumber ?? '—'}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(student.totalExpected)}</td>
                           <td className="px-4 py-3 text-right tabular-nums text-green-700">{formatCurrency(student.totalPaid)}</td>
                           <td className={`px-4 py-3 text-right tabular-nums font-medium ${student.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>

@@ -32,7 +32,7 @@ type EnrolledStudent = {
   student: {
     id: string
     name: string
-    rollNumber: string
+    rollNumber: string | null
     gender: string | null
     dateOfBirth: Date | null
   }
@@ -280,7 +280,7 @@ export default function PromouvoirPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{e.student.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          Matricule : {e.student.rollNumber}
+                          {e.student.rollNumber ? `Matricule : ${e.student.rollNumber}` : ''}
                           {e.student.gender && ` · ${e.student.gender === 'male' ? 'Masculin' : 'Féminin'}`}
                           {e.student.dateOfBirth && ` · ${new Date(e.student.dateOfBirth).toLocaleDateString('fr-FR')}`}
                         </p>

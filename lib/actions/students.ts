@@ -103,7 +103,7 @@ export async function getStudent(id: string) {
 
 export async function createStudent(data: {
   name: string
-  rollNumber: string
+  rollNumber?: string
   classId: string
   parentName?: string
   parentPhone?: string

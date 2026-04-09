@@ -26,7 +26,7 @@ export type DiscountSummary = {
 export type StudentPaymentSummary = {
   id: string
   name: string
-  rollNumber: string
+  rollNumber: string | null
   baseFee: number
   extraFees: ExtraFeeSummary[]
   totalExtraFees: number

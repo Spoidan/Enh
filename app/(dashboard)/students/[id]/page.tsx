@@ -44,7 +44,7 @@ export default async function StudentDetailPage({
           <div>
             <h1 className="text-2xl font-bold">{student.name}</h1>
             <p className="text-muted-foreground text-sm">
-              Matricule #{student.rollNumber} · {student.class.name}
+              {student.rollNumber ? `Matricule #${student.rollNumber} · ` : ''}{student.class.name}
             </p>
           </div>
         </div>
