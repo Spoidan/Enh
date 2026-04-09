@@ -35,6 +35,7 @@ export function PaymentsClient({ payments, total, pages, currentPage, preselecte
   const [showAdd, setShowAdd] = useState(!!preselectedStudentId)
   const [adding, setAdding] = useState(false)
   const [students, setStudents] = useState<(Student & { class: Class })[]>([])
+  const [selectedStudentId, setSelectedStudentId] = useState(preselectedStudentId ?? '')
 
   useEffect(() => {
     if (showAdd) {
@@ -44,11 +45,14 @@ export function PaymentsClient({ payments, total, pages, currentPage, preselecte
 
   const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!selectedStudentId) {
+      return
+    }
     setAdding(true)
     const fd = new FormData(e.currentTarget)
     try {
       await createPayment({
-        studentId: fd.get('studentId') as string,
+        studentId: selectedStudentId,
         amount: Number(fd.get('amount')),
         date: fd.get('date') as string,
         method: (fd.get('method') as string) || 'cash',
@@ -186,7 +190,8 @@ export function PaymentsClient({ payments, total, pages, currentPage, preselecte
             <div className="grid gap-4 py-4">
               <div className="space-y-1.5">
                 <Label>Student *</Label>
-                <Select name="studentId" required defaultValue={preselectedStudentId}>
+                <input type="hidden" name="studentId" value={selectedStudentId} />
+                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
                   <SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger>
                   <SelectContent>
                     {students.map(s => (
