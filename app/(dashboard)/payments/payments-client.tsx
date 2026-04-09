@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createPayment, deletePayment } from '@/lib/actions/payments'
-import { getStudents } from '@/lib/actions/students'
+import { getStudentsForDropdown } from '@/lib/actions/students'
 import { formatCurrency, formatDate, downloadCSV } from '@/lib/utils'
 import type { Payment, Student, Class } from '@/app/generated/prisma/client'
 import { useEffect } from 'react'
@@ -41,9 +41,7 @@ export function PaymentsClient({ payments, total, pages, currentPage, preselecte
 
   useEffect(() => {
     if (showAdd) {
-      getStudents({ limit: 500, status: 'all' }).then(r => {
-        const list: StudentOption[] = r.students
-        // Ensure the preselected student is always in the list even if beyond the query limit
+      getStudentsForDropdown().then(list => {
         if (preselectedStudent && !list.find(s => s.id === preselectedStudent.id)) {
           list.unshift(preselectedStudent)
         }

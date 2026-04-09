@@ -86,6 +86,13 @@ export async function getStudents(params?: {
   return { students, total, pages: Math.ceil(total / limit) }
 }
 
+export async function getStudentsForDropdown() {
+  return db.student.findMany({
+    select: { id: true, name: true, class: { select: { name: true } } },
+    orderBy: { name: 'asc' },
+  })
+}
+
 export async function getStudent(id: string) {
   return db.student.findUnique({
     where: { id },
