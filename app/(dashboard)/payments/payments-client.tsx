@@ -18,6 +18,7 @@ import type { Payment, Student, Class } from '@/app/generated/prisma/client'
 import { useEffect } from 'react'
 
 type PaymentWithStudent = Payment & { student: Student & { class: Class } }
+type StudentOption = { id: string; name: string; class: { name: string } }
 
 interface Props {
   payments: PaymentWithStudent[]
@@ -25,21 +26,29 @@ interface Props {
   pages: number
   currentPage: number
   preselectedStudentId?: string
+  preselectedStudent?: StudentOption | null
 }
 
 const PAYMENT_METHODS = ['cash', 'bank transfer', 'check', 'online', 'card']
 
-export function PaymentsClient({ payments, total, pages, currentPage, preselectedStudentId }: Props) {
+export function PaymentsClient({ payments, total, pages, currentPage, preselectedStudentId, preselectedStudent }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [showAdd, setShowAdd] = useState(!!preselectedStudentId)
   const [adding, setAdding] = useState(false)
-  const [students, setStudents] = useState<(Student & { class: Class })[]>([])
+  const [students, setStudents] = useState<StudentOption[]>(preselectedStudent ? [preselectedStudent] : [])
   const [selectedStudentId, setSelectedStudentId] = useState(preselectedStudentId ?? '')
 
   useEffect(() => {
     if (showAdd) {
-      getStudents({ limit: 500, status: 'all' }).then(r => setStudents(r.students))
+      getStudents({ limit: 500, status: 'all' }).then(r => {
+        const list: StudentOption[] = r.students
+        // Ensure the preselected student is always in the list even if beyond the query limit
+        if (preselectedStudent && !list.find(s => s.id === preselectedStudent.id)) {
+          list.unshift(preselectedStudent)
+        }
+        setStudents(list)
+      })
     }
   }, [showAdd])
 
