@@ -30,6 +30,7 @@ interface Props {
     totalSales: number
     totalIncome: number
     totalExpenses: number
+    totalSalaries: number
     netBalance: number
   }
   deposits: { deposits: Deposit[]; total: number; pages: number }

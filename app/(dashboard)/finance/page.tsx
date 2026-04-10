@@ -33,7 +33,7 @@ export default async function FinancePage({
   const yearEnd = activeYear?.endDate ?? new Date()
 
   const [summary, deposits, expenses, monthlyData, expenseBreakdown] = await Promise.all([
-    getFinancialSummary(),
+    getFinancialSummary(yearStart, yearEnd),
     getDeposits({ page: depositPage }),
     getExpenses({ page: expensePage, startDate: estartDate, endDate: eendDate }),
     getMonthlyChartData(yearStart, yearEnd),

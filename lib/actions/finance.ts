@@ -78,22 +78,55 @@ export async function deleteExpense(id: string) {
   revalidatePath('/finance')
 }
 
-export async function getFinancialSummary() {
-  const [payments, deposits, expenses, sales] = await Promise.all([
-    db.payment.aggregate({ _sum: { amount: true } }),
-    db.deposit.aggregate({ _sum: { amount: true } }),
-    db.expense.aggregate({ _sum: { amount: true } }),
-    db.sale.aggregate({ _sum: { amount: true } }),
+export async function getFinancialSummary(yearStartDate?: Date, yearEndDate?: Date) {
+  const yearFilter = yearStartDate && yearEndDate
+    ? { gte: yearStartDate, lte: yearEndDate }
+    : undefined
+
+  const [payments, deposits, expenses, sales, salaries] = await Promise.all([
+    // Student payments for the school year
+    db.payment.aggregate({
+      where: yearFilter ? { date: yearFilter } : undefined,
+      _sum: { amount: true },
+    }),
+    // Bank deposits (for the overview sub-card only, not in Total Revenus)
+    db.deposit.aggregate({
+      where: yearFilter ? { date: yearFilter } : undefined,
+      _sum: { amount: true },
+    }),
+    // Expenses (spending) for the school year
+    db.expense.aggregate({
+      where: yearFilter ? { date: yearFilter } : undefined,
+      _sum: { amount: true },
+    }),
+    // Sales revenue for the school year
+    db.sale.aggregate({
+      where: yearFilter ? { date: yearFilter } : undefined,
+      _sum: { amount: true },
+    }),
+    // Salary payments for the school year
+    db.salaryPayment.aggregate({
+      where: yearFilter ? { date: yearFilter } : undefined,
+      _sum: { amount: true },
+    }),
   ])
 
-  const totalPayments = payments._sum.amount ?? 0
-  const totalDeposits = deposits._sum.amount ?? 0
-  const totalSales = sales._sum.amount ?? 0
-  const totalIncome = totalPayments + totalDeposits + totalSales
-  const totalExpenses = expenses._sum.amount ?? 0
-  const netBalance = totalIncome - totalExpenses
+  const totalPayments = payments._sum.amount ?? 0   // student payments
+  const totalDeposits = deposits._sum.amount ?? 0   // bank deposits (sub-card only)
+  const totalSales = sales._sum.amount ?? 0          // sales revenue
+  const totalExpenses = expenses._sum.amount ?? 0   // spending from finance page
+  const totalSalaries = salaries._sum.amount ?? 0   // salaries from salary page
 
-  return { totalPayments, totalDeposits, totalSales, totalIncome, totalExpenses, netBalance }
+  // Total Revenus = student payments + sales revenue (school year)
+  const totalIncome = totalPayments + totalSales
+
+  // Total Dépenses = spending from finance page (school year, salaries excluded)
+  // (totalExpenses is returned as-is)
+
+  // Solde Net = (payments + sales) - (expenses + salaries)
+  const netBalance = totalIncome - (totalExpenses + totalSalaries)
+
+  return { totalPayments, totalDeposits, totalSales, totalIncome, totalExpenses, totalSalaries, netBalance }
 }
 
 export async function getRevenueChartData(days = 30) {
