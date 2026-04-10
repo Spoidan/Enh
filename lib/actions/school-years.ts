@@ -159,3 +159,21 @@ export async function deleteYearFeeStructure(id: string) {
   await db.yearFeeStructure.delete({ where: { id } })
   revalidatePath('/school-years')
 }
+
+export async function updateTerm(id: string, data: {
+  name?: string
+  startDate?: string
+  endDate?: string
+}) {
+  await requireAdmin()
+  const term = await db.term.update({
+    where: { id },
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.startDate !== undefined && { startDate: new Date(data.startDate) }),
+      ...(data.endDate !== undefined && { endDate: new Date(data.endDate) }),
+    },
+  })
+  revalidatePath('/school-years')
+  return term
+}

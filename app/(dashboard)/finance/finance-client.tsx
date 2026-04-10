@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Trash2, Download, TrendingUp, TrendingDown, DollarSign, Landmark } from 'lucide-react'
+import { Plus, Trash2, Download, TrendingUp, TrendingDown, DollarSign, Landmark, Filter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { IncomeExpensesChart } from '@/components/charts/income-expenses-chart'
+import { MonthlyFinanceChart } from '@/components/charts/monthly-finance-chart'
+import { ExpenseBreakdownChart } from '@/components/charts/expense-breakdown-chart'
 import { createDeposit, deleteDeposit, createExpense, deleteExpense } from '@/lib/actions/finance'
 import { formatCurrency, formatDate, downloadCSV } from '@/lib/utils'
 import type { Deposit, Expense } from '@/app/generated/prisma/client'
@@ -33,19 +34,98 @@ interface Props {
   }
   deposits: { deposits: Deposit[]; total: number; pages: number }
   expenses: { expenses: Expense[]; total: number; pages: number }
-  chartData: { date: string; income: number; expenses: number }[]
+  monthlyData: { month: string; income: number; expenses: number }[]
+  expenseBreakdown: { category: string; amount: number }[]
   initialTab: string
-  currentPage: number
+  depositPage: number
+  expensePage: number
+  expenseStartDate: string
+  expenseEndDate: string
+  yearName: string
 }
 
-export function FinanceClient({ summary, deposits, expenses, chartData, initialTab, currentPage }: Props) {
+function Pagination({
+  page,
+  pages,
+  onPage,
+}: {
+  page: number
+  pages: number
+  onPage: (p: number) => void
+}) {
+  if (pages <= 1) return null
+  return (
+    <div className="flex items-center justify-between pt-3 border-t">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPage(page - 1)}
+        disabled={page <= 1}
+      >
+        Précédent
+      </Button>
+      <span className="text-sm text-muted-foreground">
+        Page {page} sur {pages}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPage(page + 1)}
+        disabled={page >= pages}
+      >
+        Suivant
+      </Button>
+    </div>
+  )
+}
+
+export function FinanceClient({
+  summary,
+  deposits,
+  expenses,
+  monthlyData,
+  expenseBreakdown,
+  initialTab,
+  depositPage,
+  expensePage,
+  expenseStartDate,
+  expenseEndDate,
+  yearName,
+}: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [showDeposit, setShowDeposit] = useState(false)
   const [showExpense, setShowExpense] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [filterStart, setFilterStart] = useState(expenseStartDate)
+  const [filterEnd, setFilterEnd] = useState(expenseEndDate)
 
   const today = new Date().toISOString().split('T')[0]
+
+  const buildUrl = (params: Record<string, string | number>) => {
+    const q = new URLSearchParams()
+    Object.entries(params).forEach(([k, v]) => { if (v !== '' && v !== 0) q.set(k, String(v)) })
+    return `/finance?${q.toString()}`
+  }
+
+  const handleDepositPage = (p: number) => {
+    router.push(buildUrl({ tab: 'deposits', dpage: p, epage: expensePage }))
+  }
+
+  const handleExpensePage = (p: number) => {
+    router.push(buildUrl({ tab: 'expenses', dpage: depositPage, epage: p, estartDate: filterStart, eendDate: filterEnd }))
+  }
+
+  const handleExpenseFilter = (e: React.FormEvent) => {
+    e.preventDefault()
+    router.push(buildUrl({ tab: 'expenses', dpage: depositPage, epage: 1, estartDate: filterStart, eendDate: filterEnd }))
+  }
+
+  const handleClearFilter = () => {
+    setFilterStart('')
+    setFilterEnd('')
+    router.push(buildUrl({ tab: 'expenses', dpage: depositPage, epage: 1 }))
+  }
 
   const handleDeposit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -64,7 +144,7 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
       setShowDeposit(false)
       router.refresh()
     } catch {
-      toast.error('Erreur lors de l\'enregistrement du dépôt')
+      toast.error("Erreur lors de l'enregistrement du dépôt")
     } finally {
       setSubmitting(false)
     }
@@ -87,7 +167,7 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
       setShowExpense(false)
       router.refresh()
     } catch {
-      toast.error('Erreur lors de l\'enregistrement de la dépense')
+      toast.error("Erreur lors de l'enregistrement de la dépense")
     } finally {
       setSubmitting(false)
     }
@@ -151,38 +231,54 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
           <TabsTrigger value="expenses">Dépenses ({expenses.total})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="mt-4">
+        {/* ── Overview Tab ─────────────────────────────────────────────────────── */}
+        <TabsContent value="overview" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Revenus vs Dépenses (30 derniers jours)</CardTitle>
+              <CardTitle className="text-base">
+                Revenus vs Dépenses mensuels
+                {yearName && <span className="ml-2 text-sm font-normal text-muted-foreground">— {yearName}</span>}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <IncomeExpensesChart data={chartData} />
+              <MonthlyFinanceChart data={monthlyData} />
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
-              <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Paiements de frais</p>
-                <p className="text-2xl font-bold mt-1 text-green-600">{formatCurrency(summary.totalPayments)}</p>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Répartition des dépenses par catégorie</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ExpenseBreakdownChart data={expenseBreakdown} />
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Dépôts bancaires</p>
-                <p className="text-2xl font-bold mt-1 text-blue-600">{formatCurrency(summary.totalDeposits)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-5">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Revenus des ventes</p>
-                <p className="text-2xl font-bold mt-1 text-purple-600">{formatCurrency(summary.totalSales)}</p>
-              </CardContent>
-            </Card>
+
+            <div className="space-y-3">
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Paiements de frais</p>
+                  <p className="text-2xl font-bold mt-1 text-green-600">{formatCurrency(summary.totalPayments)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Dépôts bancaires</p>
+                  <p className="text-2xl font-bold mt-1 text-blue-600">{formatCurrency(summary.totalDeposits)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Revenus des ventes</p>
+                  <p className="text-2xl font-bold mt-1 text-purple-600">{formatCurrency(summary.totalSales)}</p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
 
+        {/* ── Deposits Tab ─────────────────────────────────────────────────────── */}
         <TabsContent value="deposits" className="mt-4 space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-3">
             <p className="text-sm text-muted-foreground">
@@ -240,13 +336,49 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
                 </tbody>
               </table>
             </div>
+            <div className="px-4 pb-3">
+              <Pagination page={depositPage} pages={deposits.pages} onPage={handleDepositPage} />
+            </div>
           </Card>
         </TabsContent>
 
+        {/* ── Expenses Tab ─────────────────────────────────────────────────────── */}
         <TabsContent value="expenses" className="mt-4 space-y-4">
+          {/* Date filter */}
+          <form onSubmit={handleExpenseFilter} className="flex flex-wrap items-end gap-3 p-3 rounded-lg border bg-muted/20">
+            <Filter className="h-4 w-4 text-muted-foreground self-center" />
+            <div className="space-y-1">
+              <Label className="text-xs">Début</Label>
+              <Input
+                type="date"
+                value={filterStart}
+                onChange={e => setFilterStart(e.target.value)}
+                className="h-8 text-sm w-36"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Fin</Label>
+              <Input
+                type="date"
+                value={filterEnd}
+                onChange={e => setFilterEnd(e.target.value)}
+                className="h-8 text-sm w-36"
+              />
+            </div>
+            <Button type="submit" size="sm" variant="outline" className="h-8">Filtrer</Button>
+            {(filterStart || filterEnd) && (
+              <Button type="button" size="sm" variant="ghost" className="h-8 text-muted-foreground" onClick={handleClearFilter}>
+                Réinitialiser
+              </Button>
+            )}
+          </form>
+
           <div className="flex flex-wrap justify-between items-center gap-3">
             <p className="text-sm text-muted-foreground">
               {expenses.total} dépense(s) — total {formatCurrency(expenses.expenses.reduce((s, e) => s + e.amount, 0))}
+              {(expenseStartDate || expenseEndDate) && (
+                <span className="ml-1 text-xs">(filtrées)</span>
+              )}
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() =>
@@ -301,6 +433,9 @@ export function FinanceClient({ summary, deposits, expenses, chartData, initialT
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="px-4 pb-3">
+              <Pagination page={expensePage} pages={expenses.pages} onPage={handleExpensePage} />
             </div>
           </Card>
         </TabsContent>

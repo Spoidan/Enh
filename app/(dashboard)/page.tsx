@@ -38,7 +38,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const resolvedYearId = yearId || activeYear?.id || ''
   const selectedYear = schoolYears.find(y => y.id === resolvedYearId)
 
-  // Determine term date range
+  // Determine period date range (trimester or full year)
   let startDate: Date | undefined
   let endDate: Date | undefined
 
@@ -53,13 +53,35 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     endDate = new Date((selectedYear as { endDate: Date | string }).endDate)
   }
 
-  const [stats, revenueData] = await Promise.all([
-    getDashboardStats(startDate && endDate ? { startDate, endDate } : undefined),
-    getRevenueChartData(30),
-  ])
+  // Full school year dates (for Card 4 total income)
+  const yearStartDate = selectedYear ? new Date((selectedYear as { startDate: Date | string }).startDate) : undefined
+  const yearEndDate = selectedYear ? new Date((selectedYear as { endDate: Date | string }).endDate) : undefined
+
+  // Determine trimester number (1, 2, or 3) by position in sorted terms list
+  let termNumber: number | undefined
+  if (termId && selectedYear) {
+    const termIdx = selectedYear.terms.findIndex((t: { id: string }) => t.id === termId)
+    if (termIdx >= 0) termNumber = termIdx + 1
+  }
 
   const activeTerm = selectedYear?.terms.find((t: { isActive: boolean }) => t.isActive)
   const resolvedTermId = termId || activeTerm?.id || ''
+
+  const [stats, revenueData] = await Promise.all([
+    getDashboardStats({
+      startDate,
+      endDate,
+      yearStartDate,
+      yearEndDate,
+      schoolYearId: resolvedYearId || undefined,
+      termNumber,
+    }),
+    getRevenueChartData(30),
+  ])
+
+  const selectedTermName = termId && selectedYear
+    ? selectedYear.terms.find((t: { id: string }) => t.id === termId)?.name
+    : undefined
 
   const metricCards = [
     {
@@ -71,9 +93,9 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       bg: 'bg-blue-50 dark:bg-blue-900/20',
     },
     {
-      title: resolvedYearId ? 'Revenus de la période' : 'Revenus du mois',
-      value: formatCurrency(stats.monthlyRevenue),
-      sub: 'Paiements de frais',
+      title: selectedTermName ? `Revenus — ${selectedTermName}` : resolvedYearId ? 'Revenus de la période' : 'Revenus du mois',
+      value: formatCurrency(stats.periodRevenue),
+      sub: 'Paiements de frais élèves',
       icon: TrendingUp,
       color: 'text-green-600',
       bg: 'bg-green-50 dark:bg-green-900/20',
@@ -89,7 +111,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     {
       title: 'Solde bancaire',
       value: formatCurrency(stats.bankBalance),
-      sub: `${formatCurrency(stats.totalExpensesAmount + stats.totalSalariesAmount)} de charges`,
+      sub: `${formatCurrency(stats.periodExpenses + stats.periodSalaries)} de charges`,
       icon: Landmark,
       color: 'text-purple-600',
       bg: 'bg-purple-50 dark:bg-purple-900/20',
@@ -97,7 +119,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     {
       title: 'Revenus totaux',
       value: formatCurrency(stats.totalIncome),
-      sub: 'Toute période confondue',
+      sub: selectedYear ? `Année ${selectedYear.name}` : 'Toute période',
       icon: Banknote,
       color: 'text-indigo-600',
       bg: 'bg-indigo-50 dark:bg-indigo-900/20',

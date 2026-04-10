@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import {
   Plus,
   Trash2,
+  Pencil,
   CalendarDays,
   CheckCircle2,
   Archive,
@@ -33,6 +34,7 @@ import {
   archiveSchoolYear,
   deleteSchoolYear,
   createTerm,
+  updateTerm,
   setActiveTerm,
   deleteTerm,
   getClasses,
@@ -89,6 +91,7 @@ export default function SchoolYearsPage() {
   // Dialogs
   const [showAddYear, setShowAddYear] = useState(false)
   const [showAddTerm, setShowAddTerm] = useState<string | null>(null) // schoolYearId
+  const [showEditTerm, setShowEditTerm] = useState<Term | null>(null) // term being edited
   const [showAddFee, setShowAddFee] = useState<string | null>(null)   // schoolYearId
   const [feeFrequency, setFeeFrequency] = useState('annual_t1')
 
@@ -184,6 +187,23 @@ export default function SchoolYearsPage() {
     startTransition(async () => {
       await setActiveTerm(termId, schoolYearId)
       toast.success('Trimestre activé')
+      load()
+    })
+  }
+
+  // Edit term
+  const handleEditTerm = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!showEditTerm) return
+    const fd = new FormData(e.currentTarget)
+    startTransition(async () => {
+      await updateTerm(showEditTerm.id, {
+        name: fd.get('name') as string,
+        startDate: fd.get('startDate') as string,
+        endDate: fd.get('endDate') as string,
+      })
+      toast.success('Trimestre mis à jour')
+      setShowEditTerm(null)
       load()
     })
   }
@@ -431,6 +451,16 @@ export default function SchoolYearsPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  className="h-7 w-7"
+                                  title="Modifier les dates"
+                                  onClick={() => setShowEditTerm(term)}
+                                  disabled={isPending}
+                                >
+                                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className="h-7 w-7 text-destructive hover:text-destructive"
                                   onClick={() => handleDeleteTerm(term.id)}
                                   disabled={isPending}
@@ -597,6 +627,49 @@ export default function SchoolYearsPage() {
                 Annuler
               </Button>
               <Button type="submit" disabled={isPending}>Créer</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Term */}
+      <Dialog open={!!showEditTerm} onOpenChange={() => setShowEditTerm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le trimestre</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditTerm}>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-1.5">
+                <Label>Nom *</Label>
+                <Input name="name" required defaultValue={showEditTerm?.name ?? ''} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Date de début *</Label>
+                  <Input
+                    name="startDate"
+                    type="date"
+                    required
+                    defaultValue={showEditTerm ? new Date(showEditTerm.startDate).toISOString().split('T')[0] : ''}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Date de fin *</Label>
+                  <Input
+                    name="endDate"
+                    type="date"
+                    required
+                    defaultValue={showEditTerm ? new Date(showEditTerm.endDate).toISOString().split('T')[0] : ''}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowEditTerm(null)}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={isPending}>Enregistrer</Button>
             </DialogFooter>
           </form>
         </DialogContent>
