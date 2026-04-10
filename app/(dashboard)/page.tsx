@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { getDashboardStats } from '@/lib/actions/dashboard'
-import { getRevenueChartData } from '@/lib/actions/finance'
+import { getMonthlyChartData } from '@/lib/actions/finance'
 import { getSchoolYears } from '@/lib/actions/school-years'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { RevenueChart } from '@/components/charts/revenue-chart'
 import { PaymentStatusChart } from '@/components/charts/payment-status-chart'
-import { IncomeExpensesChart } from '@/components/charts/income-expenses-chart'
+import { MonthlyFinanceChart } from '@/components/charts/monthly-finance-chart'
 import { SalesBreakdownChart } from '@/components/charts/sales-breakdown-chart'
 import { DashboardFilters } from '@/components/dashboard-filters'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -67,6 +67,9 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const activeTerm = selectedYear?.terms.find((t: { isActive: boolean }) => t.isActive)
   const resolvedTermId = termId || activeTerm?.id || ''
 
+  const chartStart = yearStartDate ?? new Date(new Date().getFullYear(), 0, 1)
+  const chartEnd = yearEndDate ?? new Date()
+
   const [stats, revenueData] = await Promise.all([
     getDashboardStats({
       startDate,
@@ -76,7 +79,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       schoolYearId: resolvedYearId || undefined,
       termNumber,
     }),
-    getRevenueChartData(30),
+    getMonthlyChartData(chartStart, chartEnd),
   ])
 
   const selectedTermName = termId && selectedYear
@@ -200,11 +203,16 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Revenus vs Dépenses</CardTitle>
-            <CardDescription>Comparaison journalière — 30 derniers jours</CardDescription>
+            <CardTitle className="text-base">
+              Revenus vs Dépenses mensuels
+              {selectedYear && (
+                <span className="ml-1 font-normal text-muted-foreground">— {selectedYear.name}</span>
+              )}
+            </CardTitle>
+            <CardDescription>Comparaison mensuelle pour l&apos;année scolaire</CardDescription>
           </CardHeader>
           <CardContent>
-            <IncomeExpensesChart data={revenueData} />
+            <MonthlyFinanceChart data={revenueData} />
           </CardContent>
         </Card>
 
