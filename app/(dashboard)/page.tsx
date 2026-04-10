@@ -38,12 +38,16 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const resolvedYearId = yearId || activeYear?.id || ''
   const selectedYear = schoolYears.find(y => y.id === resolvedYearId)
 
+  // Resolve active term first so it can be used as default
+  const activeTerm = selectedYear?.terms.find((t: { isActive: boolean }) => t.isActive)
+  const resolvedTermId = termId || activeTerm?.id || ''
+
   // Determine period date range (trimester or full year)
   let startDate: Date | undefined
   let endDate: Date | undefined
 
-  if (termId && selectedYear) {
-    const term = selectedYear.terms.find((t: { id: string }) => t.id === termId)
+  if (resolvedTermId && selectedYear) {
+    const term = selectedYear.terms.find((t: { id: string }) => t.id === resolvedTermId)
     if (term) {
       startDate = new Date((term as { startDate: Date | string }).startDate)
       endDate = new Date((term as { endDate: Date | string }).endDate)
@@ -59,13 +63,10 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
   // Determine trimester number (1, 2, or 3) by position in sorted terms list
   let termNumber: number | undefined
-  if (termId && selectedYear) {
-    const termIdx = selectedYear.terms.findIndex((t: { id: string }) => t.id === termId)
+  if (resolvedTermId && selectedYear) {
+    const termIdx = selectedYear.terms.findIndex((t: { id: string }) => t.id === resolvedTermId)
     if (termIdx >= 0) termNumber = termIdx + 1
   }
-
-  const activeTerm = selectedYear?.terms.find((t: { isActive: boolean }) => t.isActive)
-  const resolvedTermId = termId || activeTerm?.id || ''
 
   const chartStart = yearStartDate ?? new Date(new Date().getFullYear(), 0, 1)
   const chartEnd = yearEndDate ?? new Date()
@@ -82,8 +83,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     getMonthlyChartData(chartStart, chartEnd),
   ])
 
-  const selectedTermName = termId && selectedYear
-    ? selectedYear.terms.find((t: { id: string }) => t.id === termId)?.name
+  const selectedTermName = resolvedTermId && selectedYear
+    ? selectedYear.terms.find((t: { id: string }) => t.id === resolvedTermId)?.name
     : undefined
 
   const metricCards = [
