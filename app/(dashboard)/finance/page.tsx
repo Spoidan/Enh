@@ -23,14 +23,19 @@ export default async function FinancePage({
   const depositPage = Math.max(1, Number(dpage ?? 1))
   const expensePage = Math.max(1, Number(epage ?? 1))
 
-  // Get active school year for monthly chart date range
+  // Get active school year with terms to derive the true date range
   const activeYear = await db.schoolYear.findFirst({
     where: { isActive: true },
-    select: { startDate: true, endDate: true, name: true },
+    select: { startDate: true, endDate: true, name: true, terms: { select: { startDate: true, endDate: true }, orderBy: { startDate: 'asc' } } },
   })
 
-  const yearStart = activeYear?.startDate ?? new Date(new Date().getFullYear(), 0, 1)
-  const yearEnd = activeYear?.endDate ?? new Date()
+  const terms = activeYear?.terms ?? []
+  const yearStart = terms.length > 0
+    ? terms[0].startDate
+    : (activeYear?.startDate ?? new Date(new Date().getFullYear(), 0, 1))
+  const yearEnd = terms.length > 0
+    ? terms[terms.length - 1].endDate
+    : (activeYear?.endDate ?? new Date())
 
   const [summary, deposits, expenses, monthlyData, expenseBreakdown] = await Promise.all([
     getFinancialSummary(yearStart, yearEnd),

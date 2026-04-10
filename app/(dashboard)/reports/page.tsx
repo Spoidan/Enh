@@ -18,8 +18,13 @@ export default async function ReportsPage() {
     include: { terms: { orderBy: { startDate: 'asc' } } },
   })
 
-  const yearStart = activeYear?.startDate ?? new Date(new Date().getFullYear(), 0, 1)
-  const yearEnd   = activeYear?.endDate   ?? new Date()
+  const terms = activeYear?.terms ?? []
+  const yearStart = terms.length > 0
+    ? terms[0].startDate
+    : (activeYear?.startDate ?? new Date(new Date().getFullYear(), 0, 1))
+  const yearEnd = terms.length > 0
+    ? terms[terms.length - 1].endDate
+    : (activeYear?.endDate ?? new Date())
   const yearFilter = { gte: yearStart, lte: yearEnd }
 
   // Per-trimester aggregation
