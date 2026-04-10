@@ -130,8 +130,8 @@ export function ReportsClient({
     },
     {
       label: 'Total Dépenses',
-      value: formatCurrency(summary.totalExpenses),
-      sub: 'Sorties de caisse',
+      value: formatCurrency(summary.totalExpenses + summary.totalSalaries),
+      sub: 'Dépenses + salaires',
       icon: TrendingDown,
       color: 'text-red-600',
       bg: 'bg-red-50 dark:bg-red-900/20',
@@ -265,7 +265,7 @@ export function ReportsClient({
                 <span className="font-semibold text-orange-600">{formatCurrency(summary.totalSalaries)}</span>
               </div>
               <div className="flex justify-between py-2 border-b font-medium">
-                <span>Total Charges</span>
+                <span>Total Dépenses</span>
                 <span className="text-red-700">{formatCurrency(summary.totalExpenses + summary.totalSalaries)}</span>
               </div>
               <div className="flex justify-between py-2 text-base font-bold">

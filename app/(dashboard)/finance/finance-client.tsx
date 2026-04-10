@@ -194,7 +194,7 @@ export function FinanceClient({
 
   const summaryCards = [
     { title: 'Total Revenus', value: formatCurrency(summary.totalIncome), icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
-    { title: 'Total Dépenses', value: formatCurrency(summary.totalExpenses), icon: TrendingDown, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
+    { title: 'Total Dépenses', value: formatCurrency(summary.totalExpenses + summary.totalSalaries), icon: TrendingDown, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
     { title: 'Solde Net', value: formatCurrency(summary.netBalance), icon: DollarSign, color: summary.netBalance >= 0 ? 'text-green-600' : 'text-red-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
     { title: 'Paiements de frais', value: formatCurrency(summary.totalPayments), icon: Landmark, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
   ]

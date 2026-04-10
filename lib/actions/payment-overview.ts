@@ -110,18 +110,41 @@ export async function getClassPaymentOverview(
 ): Promise<ClassPaymentOverview> {
   const trimester = options?.trimester ?? 0
 
-  // Get the target school year (specified or active)
+  // Get the target school year WITH terms (for date-range payment filtering)
   const schoolYear = options?.schoolYearId
     ? await db.schoolYear.findUnique({
         where: { id: options.schoolYearId },
-        include: { yearFeeStructures: { where: { classId } } },
+        include: {
+          yearFeeStructures: { where: { classId } },
+          terms: { orderBy: { startDate: 'asc' } },
+        },
       })
     : await db.schoolYear.findFirst({
         where: { isActive: true },
-        include: { yearFeeStructures: { where: { classId } } },
+        include: {
+          yearFeeStructures: { where: { classId } },
+          terms: { orderBy: { startDate: 'asc' } },
+        },
       })
 
   const yearFee = schoolYear?.yearFeeStructures[0] ?? null
+
+  // Resolve payment date filter from school year settings
+  // trimester 1/2/3 → use that term's exact start/end dates
+  // trimester 0 (full year) → use school year start/end dates
+  let paymentDateFilter: { gte: Date; lte: Date } | undefined
+  if (schoolYear) {
+    if (trimester > 0) {
+      // terms are sorted by startDate asc: index 0 = T1, 1 = T2, 2 = T3
+      const term = schoolYear.terms[trimester - 1]
+      if (term) {
+        paymentDateFilter = { gte: term.startDate, lte: term.endDate }
+      }
+    } else {
+      // Full year range
+      paymentDateFilter = { gte: schoolYear.startDate, lte: schoolYear.endDate }
+    }
+  }
 
   // Get students enrolled in this class for the school year
   let students
@@ -131,7 +154,9 @@ export async function getClassPaymentOverview(
       include: {
         student: {
           include: {
-            payments: true,
+            payments: paymentDateFilter
+              ? { where: { date: paymentDateFilter } }
+              : true,
             extraFees: { orderBy: { createdAt: 'asc' } },
             discounts: { orderBy: { createdAt: 'asc' } },
             class: { include: { feeStructures: { where: { isActive: true } } } },
@@ -142,7 +167,7 @@ export async function getClassPaymentOverview(
     })
     students = enrollments.map(e => ({ ...e.student, enrollmentStatus: e.status }))
   } else {
-    // Fallback: no school year — show all active students in class
+    // Fallback: no school year — show all active students in class, all payments
     const rawStudents = await db.student.findMany({
       where: { classId, isActive: true },
       include: {
